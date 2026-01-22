@@ -19,6 +19,7 @@ export interface Paper {
   is_favorite: boolean;
   is_not_interested: boolean;
   citation_count: number;
+  registered_by: string | null;  // 등록자 이름
   created_at: string;
   updated_at: string;
 }
@@ -69,16 +70,20 @@ export const getPaper = async (paperId: string): Promise<PaperDetail> => {
 };
 
 // Register new paper (Stage 1)
-export const registerNewPaper = async (paperId: string): Promise<Paper> => {
-  const response = await api.post<Paper>('/register/new', { paper_id: paperId });
+export const registerNewPaper = async (paperId: string, registeredBy?: string): Promise<Paper> => {
+  const response = await api.post<Paper>('/register/new', {
+    paper_id: paperId,
+    registered_by: registeredBy,
+  });
   return response.data;
 };
 
 // Register citing papers (Stage 1)
-export const registerCitingPapers = async (paperId: string, limit: number = 50): Promise<Paper[]> => {
+export const registerCitingPapers = async (paperId: string, limit: number = 50, registeredBy?: string): Promise<Paper[]> => {
   const response = await api.post<Paper[]>('/register/citations', {
     paper_id: paperId,
     limit,
+    registered_by: registeredBy,
   });
   return response.data;
 };

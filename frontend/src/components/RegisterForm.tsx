@@ -1,10 +1,17 @@
 import { useState } from 'react';
 
 interface RegisterFormProps {
-  onRegisterNew: (paperId: string) => Promise<void>;
-  onRegisterCitations: (paperId: string, limit: number) => Promise<void>;
+  onRegisterNew: (paperId: string, registeredBy?: string) => Promise<void>;
+  onRegisterCitations: (paperId: string, limit: number, registeredBy?: string) => Promise<void>;
   loading?: boolean;
 }
+
+// 환경 변수에서 등록자 이름 목록 읽기
+const getRegisteredByOptions = (): string[] => {
+  const envValue = import.meta.env.VITE_REGISTERED_BY_OPTIONS;
+  if (!envValue) return [];
+  return envValue.split(',').map((name: string) => name.trim());
+};
 
 export default function RegisterForm({
   onRegisterNew,
@@ -13,6 +20,7 @@ export default function RegisterForm({
 }: RegisterFormProps) {
   const [paperId, setPaperId] = useState('');
   const [citationLimit, setCitationLimit] = useState(50);
+  const [registeredBy, setRegisteredBy] = useState('');
   const [mode, setMode] = useState<'new' | 'citations'>('new');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -20,9 +28,9 @@ export default function RegisterForm({
     if (!paperId.trim()) return;
 
     if (mode === 'new') {
-      await onRegisterNew(paperId.trim());
+      await onRegisterNew(paperId.trim(), registeredBy || undefined);
     } else {
-      await onRegisterCitations(paperId.trim(), citationLimit);
+      await onRegisterCitations(paperId.trim(), citationLimit, registeredBy || undefined);
     }
 
     setPaperId('');
@@ -63,6 +71,23 @@ export default function RegisterForm({
           placeholder="예: 2306.02437"
           disabled={loading}
         />
+      </div>
+
+      <div className="input-group">
+        <label htmlFor="registeredBy">등록자:</label>
+        <select
+          id="registeredBy"
+          value={registeredBy}
+          onChange={(e) => setRegisteredBy(e.target.value)}
+          disabled={loading}
+        >
+          <option value="">선택하지 않음</option>
+          {getRegisteredByOptions().map((name: string) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {mode === 'citations' && (

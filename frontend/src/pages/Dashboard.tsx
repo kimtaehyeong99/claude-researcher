@@ -78,11 +78,11 @@ export default function Dashboard() {
     fetchPapers();
   }, [fetchPapers, activeTab]);
 
-  const handleRegisterNew = async (paperId: string) => {
+  const handleRegisterNew = async (paperId: string, registeredBy?: string) => {
     setLoading(true);
     setError(null);
     try {
-      await registerNewPaper(paperId);
+      await registerNewPaper(paperId, registeredBy);
       await fetchPapers();
     } catch (err: any) {
       setError(err.response?.data?.detail || '논문 등록에 실패했습니다.');
@@ -91,11 +91,11 @@ export default function Dashboard() {
     }
   };
 
-  const handleRegisterCitations = async (paperId: string, limit: number) => {
+  const handleRegisterCitations = async (paperId: string, limit: number, registeredBy?: string) => {
     setLoading(true);
     setError(null);
     try {
-      const result = await registerCitingPapers(paperId, limit);
+      const result = await registerCitingPapers(paperId, limit, registeredBy);
       await fetchPapers();
       alert(`${result.length}개의 새로운 인용 논문이 등록되었습니다.`);
     } catch (err: any) {

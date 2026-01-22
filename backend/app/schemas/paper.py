@@ -19,6 +19,7 @@ class PaperResponse(PaperBase):
     is_favorite: bool
     is_not_interested: bool
     citation_count: int
+    registered_by: Optional[str] = None  # 등록자 이름
     created_at: datetime
     updated_at: datetime
 
@@ -38,8 +39,10 @@ class PaperListResponse(BaseModel):
 
 class RegisterNewRequest(BaseModel):
     paper_id: str  # e.g., "2306.02437"
+    registered_by: Optional[str] = None  # 등록자 이름 (e.g., "태형", "원호")
 
 
 class RegisterCitationsRequest(BaseModel):
     paper_id: str  # e.g., "2306.02437"
     limit: int = 50  # Maximum number of citing papers to register
+    registered_by: Optional[str] = None  # 등록자 이름

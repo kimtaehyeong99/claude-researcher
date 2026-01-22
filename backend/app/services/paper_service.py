@@ -41,7 +41,7 @@ class PaperService:
             json.dump(data, f, ensure_ascii=False, indent=2, default=str)
 
     async def register_new_paper(
-        self, db: Session, paper_id: str, skip_citation: bool = False
+        self, db: Session, paper_id: str, skip_citation: bool = False, registered_by: str = None
     ) -> Optional[Paper]:
         """
         Register a new paper (Stage 1)
@@ -50,6 +50,7 @@ class PaperService:
             db: Database session
             paper_id: arXiv paper ID
             skip_citation: 인용수 조회 건너뛰기 (빠른 등록)
+            registered_by: 등록자 이름
 
         Returns:
             Created Paper object or None if failed
@@ -79,6 +80,7 @@ class PaperService:
             arxiv_date=arxiv_info.get("arxiv_date"),
             search_stage=1,
             citation_count=citation_count,
+            registered_by=registered_by,
         )
         db.add(paper)
         db.commit()
@@ -99,7 +101,7 @@ class PaperService:
         return paper
 
     async def register_citing_papers(
-        self, db: Session, paper_id: str, limit: int = 50
+        self, db: Session, paper_id: str, limit: int = 50, registered_by: str = None
     ) -> List[Paper]:
         """
         Register papers that cite the given paper (Stage 1)
@@ -109,6 +111,7 @@ class PaperService:
             db: Database session
             paper_id: arXiv paper ID of the cited paper
             limit: Maximum number of NEW papers to register
+            registered_by: 등록자 이름
 
         Returns:
             List of newly created Paper objects
@@ -150,6 +153,7 @@ class PaperService:
                 arxiv_date=arxiv_info.get("arxiv_date") if arxiv_info else None,
                 search_stage=1,
                 citation_count=citing.get("citation_count", 0),
+                registered_by=registered_by,
             )
             db.add(paper)
 

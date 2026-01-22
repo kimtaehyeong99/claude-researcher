@@ -15,5 +15,6 @@ class Paper(Base):
     is_favorite = Column(Boolean, default=False)
     is_not_interested = Column(Boolean, default=False)
     citation_count = Column(Integer, default=0)
+    registered_by = Column(String, nullable=True)  # 등록자 이름 (e.g., "태형", "원호")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

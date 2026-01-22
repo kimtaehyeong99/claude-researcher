@@ -116,6 +116,24 @@ body {
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
+.input-group select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  background: white;
+  cursor: pointer;
+  color: #333;
+  transition: border-color 0.2s;
+}
+
+.input-group select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
 .submit-button {
   width: 100%;
   padding: 0.75rem;
@@ -369,6 +387,13 @@ body {
 
 .paper-title.clickable:hover {
   color: #667eea;
+}
+
+.registered-by {
+  font-weight: 500;
+  color: #555;
+  min-width: 60px;
+  text-align: center;
 }
 
 .empty-list {

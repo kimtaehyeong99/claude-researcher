@@ -53,6 +53,7 @@ export default function PaperList({
             <th>논문 번호</th>
             <th>제목</th>
             <th>등록일</th>
+            <th>등록자</th>
             <th>인용수</th>
             <th>단계</th>
             <th>작업</th>
@@ -77,6 +78,7 @@ export default function PaperList({
                 {paper.title || '제목 없음'}
               </td>
               <td>{formatDate(paper.arxiv_date)}</td>
+              <td className="registered-by">{paper.registered_by || '-'}</td>
               <td>
                 {paper.citation_count.toLocaleString()}
                 <button

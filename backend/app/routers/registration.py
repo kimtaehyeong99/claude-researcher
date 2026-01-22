@@ -25,8 +25,14 @@ async def register_new_paper(
     - Fetches paper info from arXiv
     - Skips citation count (to avoid rate limit, use citation registration instead)
     - Creates database entry and JSON file
+    - Records who registered the paper
     """
-    paper = await paper_service.register_new_paper(db, request.paper_id, skip_citation=True)
+    paper = await paper_service.register_new_paper(
+        db,
+        request.paper_id,
+        skip_citation=True,
+        registered_by=request.registered_by
+    )
 
     if not paper:
         raise HTTPException(
@@ -49,11 +55,13 @@ async def register_citing_papers(
     - Sorts by citation count and takes top N (default 50)
     - Creates database entries and JSON files for each
     - Returns empty list if all citing papers already exist in database
+    - Records who registered the papers
     """
     papers = await paper_service.register_citing_papers(
         db,
         request.paper_id,
-        request.limit
+        request.limit,
+        registered_by=request.registered_by
     )
 
     # Return papers (even if empty - means all citing papers already exist)
