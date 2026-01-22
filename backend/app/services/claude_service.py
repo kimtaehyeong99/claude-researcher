@@ -81,10 +81,13 @@ class ClaudeService:
 - 분수: frac를 사용 (예: frac(a)(b))
 - 그리스 문자: pi, alpha, rho 등의 LaTeX 명령어
 
-초록:
-{abstract}
+**응답 형식 (중요)**:
+- 인사말이나 설명 없이 바로 "논문 초록 요약:" 으로 시작해주세요
+- "사용자께서~" 같은 불필요한 인사말은 절대 포함하지 말아주세요
+- 바로 내용부터 작성해주세요
 
-한국어 정리:"""
+초록:
+{abstract}"""
 
         print("[ClaudeCLI] Summarizing abstract...")
         result = await self._run_claude_cli(prompt)
@@ -199,7 +202,14 @@ class ClaudeService:
 
 ---
 
-{math_instructions}"""
+{math_instructions}
+
+---
+
+**응답 형식 (중요)**:
+- 인사말이나 설명 없이 바로 "논문 상세 분석:" 으로 시작해주세요
+- "사용자께서~" 같은 불필요한 인사말은 절대 포함하지 말아주세요
+- 바로 "### 연구 배경 및 문제 정의" 섹션부터 작성해주세요"""
 
         print("[ClaudeCLI] Analyzing paper...")
         result = await self._run_claude_cli(prompt, max_retries=2)
