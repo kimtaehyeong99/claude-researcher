@@ -73,9 +73,13 @@ class ClaudeService:
         prompt = f"""다음 논문 초록(Abstract)을 한국어로 자연스럽게 정리해주세요.
 핵심 내용을 파악하기 쉽게 요약하고, 전문 용어는 영어를 괄호 안에 병기해주세요.
 
-수식이 포함되면 다음 형식을 따라주세요:
-- 텍스트 중간의 수식: $수식$ (예: $E = mc^2$)
-- 별도 줄의 수식: $$수식$$ (예: $$max_x f(x)$$)
+수식 포맷팅 규칙:
+- 모든 수학 표현은 LaTeX 형식이어야 합니다
+- 인라인 수식: $수식$ 형태 (예: $E = mc^2$)
+- 디스플레이 수식: $$ 수식 $$ 형태 (각 $$ 전후로 개행)
+- 첨자: underscore를 사용 (예: a_i, rho_pi_E)
+- 분수: frac를 사용 (예: frac(a)(b))
+- 그리스 문자: pi, alpha, rho 등의 LaTeX 명령어
 
 초록:
 {abstract}
@@ -143,20 +147,7 @@ class ClaudeService:
         if len(full_text) > max_length:
             full_text = full_text[:max_length]
 
-        prompt = f"""다음 논문을 상세히 분석하여 한국어로 정리해주세요.
-
-**논문 제목**: {title}
-**ArXiv ID**: {paper_id}
-
-**초록**:
-{abstract}
-
-**본문 (일부)**:
-{full_text}
-
----
-
-다음 형식으로 작성해주세요:
+        format_instructions = """다음 형식으로 작성해주세요:
 
 ### 연구 배경 및 문제 정의
 (이 연구가 해결하고자 하는 문제와 배경을 설명)
@@ -174,17 +165,41 @@ class ClaudeService:
 (이 논문의 주요 발견사항과 시사점)
 
 ### 한줄 요약
-(논문의 핵심을 한 문장으로 요약)
+(논문의 핵심을 한 문장으로 요약)"""
+
+        math_instructions = """중요: 수식 포맷팅 규칙
+1. 모든 수학 표현은 LaTeX 형식이어야 합니다
+2. 인라인 수식 (텍스트 중간): $수식$ 형태
+   예: The loss is $L = 0.5 * x^2$
+3. 디스플레이 수식 (별도 줄): $$ 수식 $$ 형태 (각 $$ 전후로 개행)
+   복잡한 수식은 다음과 같이:
+   - 첨자: underscore 사용 (a_i, rho_pi_A)
+   - 분수: frac 사용
+   - 합: sum, 적분: int 사용
+   - 그리스 문자: pi, alpha, rho 등 사용
+4. 복잡한 수식은 반드시 $$ $$ 로 감싸세요
+5. 수식 내 일반 텍스트는 text 명령어 사용
+
+전문 용어는 영어를 괄호 안에 병기해주세요."""
+
+        prompt = f"""다음 논문을 상세히 분석하여 한국어로 정리해주세요.
+
+**논문 제목**: {title}
+**ArXiv ID**: {paper_id}
+
+**초록**:
+{abstract}
+
+**본문 (일부)**:
+{full_text}
 
 ---
 
-중요: 수식이나 수학적 표현을 포함할 때는 다음 형식을 따라주세요:
-- 텍스트 중간의 수식: $수식$ (예: $E = mc^2$)
-- 별도 줄의 수식: $$수식$$ (예: $$max_x f(x)$$)
-- 언더스코어(_)는 첨자를 나타냅니다. 예: $a_i$, $rho_pi_E$
-- LaTeX 명령어: max, sum, frac, sqrt 등을 사용합니다
+{format_instructions}
 
-전문 용어는 영어를 괄호 안에 병기해주세요."""
+---
+
+{math_instructions}"""
 
         print("[ClaudeCLI] Analyzing paper...")
         result = await self._run_claude_cli(prompt, max_retries=2)
