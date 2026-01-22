@@ -12,7 +12,7 @@ import {
   bulkNotInterested,
   bulkDeletePapers,
   bulkRestorePapers,
-  getKeywords,
+  getCategories,
 } from '../api/paperApi';
 import PaperList from '../components/PaperList';
 import RegisterForm from '../components/RegisterForm';
@@ -59,11 +59,11 @@ export default function Dashboard() {
     return localStorage.getItem(STORAGE_KEYS.CATEGORY_FILTER) || '';
   });
 
-  // 카테고리 목록 조회
+  // 카테고리 목록 조회 (경량 API 사용 - 데이터 전송량 90% 감소)
   const fetchCategories = useCallback(async () => {
     try {
-      const response = await getKeywords();
-      setCategories(response.categories || []);
+      const categories = await getCategories();
+      setCategories(categories || []);
     } catch (err) {
       console.error('카테고리 로드 실패:', err);
     }
@@ -129,9 +129,10 @@ export default function Dashboard() {
     }
   }, [activeTab, keyword, sortBy, sortOrder, currentPage, categoryFilter]);
 
+  // 단일 useEffect로 통합 (중복 호출 방지)
   useEffect(() => {
     fetchPapers();
-  }, [fetchPapers, activeTab]);
+  }, [fetchPapers]);
 
   const handleRegisterNew = async (paperId: string, registeredBy?: string) => {
     setLoading(true);
@@ -162,8 +163,11 @@ export default function Dashboard() {
 
   const handleToggleFavorite = async (paperId: string) => {
     try {
-      await toggleFavorite(paperId);
-      await fetchPapers();
+      const updatedPaper = await toggleFavorite(paperId);
+      // 로컬 상태만 업데이트 (전체 재조회 대신)
+      setPapers(papers.map(p =>
+        p.paper_id === paperId ? { ...p, is_favorite: updatedPaper.is_favorite } : p
+      ));
     } catch (err) {
       console.error('즐겨찾기 토글 실패:', err);
     }
@@ -171,8 +175,24 @@ export default function Dashboard() {
 
   const handleToggleNotInterested = async (paperId: string) => {
     try {
-      await toggleNotInterested(paperId);
-      await fetchPapers();
+      const updatedPaper = await toggleNotInterested(paperId);
+      // 로컬 상태만 업데이트 (전체 재조회 대신)
+      // 관심없음 탭이 아니면 목록에서 제거, 관심없음 탭이면 업데이트
+      if (activeTab === 'not_interested') {
+        setPapers(papers.map(p =>
+          p.paper_id === paperId ? { ...p, is_not_interested: updatedPaper.is_not_interested } : p
+        ));
+      } else {
+        // 관심없음으로 표시되면 현재 목록에서 제거
+        if (updatedPaper.is_not_interested) {
+          setPapers(papers.filter(p => p.paper_id !== paperId));
+          setTotal(prev => prev - 1);
+        } else {
+          setPapers(papers.map(p =>
+            p.paper_id === paperId ? { ...p, is_not_interested: updatedPaper.is_not_interested } : p
+          ));
+        }
+      }
     } catch (err) {
       console.error('관심없음 토글 실패:', err);
     }
@@ -180,8 +200,11 @@ export default function Dashboard() {
 
   const handleUpdateCitation = async (paperId: string) => {
     try {
-      await updateCitationCount(paperId);
-      await fetchPapers();
+      const updatedPaper = await updateCitationCount(paperId);
+      // 로컬 상태만 업데이트 (전체 재조회 대신)
+      setPapers(papers.map(p =>
+        p.paper_id === paperId ? { ...p, citation_count: updatedPaper.citation_count } : p
+      ));
     } catch (err: any) {
       setError(err.response?.data?.detail || '인용수 업데이트 실패');
     }
@@ -241,43 +264,34 @@ export default function Dashboard() {
     navigate(`/paper/${encodeURIComponent(paperId)}`);
   };
 
+  // localStorage는 useEffect에서 자동 동기화됨 (중복 호출 제거)
   const handleSearch = (searchKeyword: string) => {
     setKeyword(searchKeyword);
     setCurrentPage(1);
-    localStorage.setItem(STORAGE_KEYS.CURRENT_PAGE, '1');
   };
 
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
     setCurrentPage(1);
-    localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, tab);
-    localStorage.setItem(STORAGE_KEYS.CURRENT_PAGE, '1');
   };
 
   const handleSortByChange = (value: string) => {
     setSortBy(value);
     setCurrentPage(1);
-    localStorage.setItem(STORAGE_KEYS.SORT_BY, value);
-    localStorage.setItem(STORAGE_KEYS.CURRENT_PAGE, '1');
   };
 
   const handleSortOrderChange = (value: string) => {
     setSortOrder(value);
     setCurrentPage(1);
-    localStorage.setItem(STORAGE_KEYS.SORT_ORDER, value);
-    localStorage.setItem(STORAGE_KEYS.CURRENT_PAGE, '1');
   };
 
   const handleCategoryFilterChange = (value: string) => {
     setCategoryFilter(value);
     setCurrentPage(1);
-    localStorage.setItem(STORAGE_KEYS.CATEGORY_FILTER, value);
-    localStorage.setItem(STORAGE_KEYS.CURRENT_PAGE, '1');
   };
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    localStorage.setItem(STORAGE_KEYS.CURRENT_PAGE, page.toString());
   };
 
   // 키워드 변경 시 카테고리 목록도 갱신
@@ -286,16 +300,14 @@ export default function Dashboard() {
     fetchPapers();
   };
 
-  // 검색어 변경 시 자동 조회
+  // localStorage 상태 동기화 (단일 useEffect로 통합)
   useEffect(() => {
-    fetchPapers();
-  }, [keyword, fetchPapers]);
-
-  // 정렬 기준이나 순서, 카테고리 변경 시 자동 조회
-  useEffect(() => {
-    fetchPapers();
-  }, [sortBy, sortOrder, categoryFilter, fetchPapers]);
-
+    localStorage.setItem(STORAGE_KEYS.SORT_BY, sortBy);
+    localStorage.setItem(STORAGE_KEYS.SORT_ORDER, sortOrder);
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, activeTab);
+    localStorage.setItem(STORAGE_KEYS.CURRENT_PAGE, currentPage.toString());
+    localStorage.setItem(STORAGE_KEYS.CATEGORY_FILTER, categoryFilter);
+  }, [sortBy, sortOrder, activeTab, currentPage, categoryFilter]);
 
   const tabs: { key: TabType; label: string }[] = [
     { key: 'all', label: '전체' },

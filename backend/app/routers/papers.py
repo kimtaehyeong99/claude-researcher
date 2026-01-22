@@ -1,4 +1,3 @@
-import json
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional, List
@@ -7,16 +6,6 @@ from app.database import get_db
 from app.models.paper import Paper
 from app.schemas.paper import PaperResponse, PaperDetailResponse, PaperListResponse
 from app.services.paper_service import PaperService
-
-
-def parse_matched_keywords(keywords_str: Optional[str]) -> Optional[List[str]]:
-    """JSON 문자열로 저장된 matched_keywords를 리스트로 변환"""
-    if not keywords_str:
-        return None
-    try:
-        return json.loads(keywords_str)
-    except json.JSONDecodeError:
-        return None
 
 router = APIRouter()
 paper_service = PaperService()
@@ -110,26 +99,8 @@ def get_papers(
     else:
         papers = query.order_by(sort_column.desc()).offset(skip).limit(limit).all()
 
-    # matched_keywords JSON 문자열을 리스트로 변환
-    paper_responses = []
-    for paper in papers:
-        response = PaperResponse(
-            id=paper.id,
-            paper_id=paper.paper_id,
-            arxiv_date=paper.arxiv_date,
-            title=paper.title,
-            search_stage=paper.search_stage,
-            is_favorite=paper.is_favorite,
-            is_not_interested=paper.is_not_interested,
-            citation_count=paper.citation_count,
-            registered_by=paper.registered_by,
-            figure_url=paper.figure_url,
-            matched_keywords=parse_matched_keywords(paper.matched_keywords),
-            created_at=paper.created_at,
-            updated_at=paper.updated_at,
-        )
-        paper_responses.append(response)
-
+    # Pydantic validator가 자동으로 matched_keywords JSON 파싱 처리
+    paper_responses = [PaperResponse.model_validate(paper) for paper in papers]
     return PaperListResponse(papers=paper_responses, total=total)
 
 
@@ -240,12 +211,12 @@ def bulk_not_interested(paper_ids: List[str], db: Session = Depends(get_db)):
     """
     Mark multiple papers as not interested
     """
-    updated_count = 0
-    for paper_id in paper_ids:
-        paper = db.query(Paper).filter(Paper.paper_id == paper_id).first()
-        if paper:
-            paper.is_not_interested = True
-            updated_count += 1
+    # 단일 쿼리로 모든 논문 조회 (N+1 문제 해결)
+    papers = db.query(Paper).filter(Paper.paper_id.in_(paper_ids)).all()
+    updated_count = len(papers)
+
+    for paper in papers:
+        paper.is_not_interested = True
 
     db.commit()
     return {"message": f"{updated_count}개 논문이 관심없음 처리되었습니다.", "count": updated_count}
@@ -256,18 +227,18 @@ def bulk_delete(paper_ids: List[str], db: Session = Depends(get_db)):
     """
     Delete multiple papers from database and file system
     """
-    deleted_count = 0
-    for paper_id in paper_ids:
-        paper = db.query(Paper).filter(Paper.paper_id == paper_id).first()
-        if paper:
-            # Delete JSON file
-            file_path = paper_service._get_paper_file_path(paper_id)
-            if file_path.exists():
-                file_path.unlink()
+    # 단일 쿼리로 모든 논문 조회 (N+1 문제 해결)
+    papers = db.query(Paper).filter(Paper.paper_id.in_(paper_ids)).all()
+    deleted_count = len(papers)
 
-            # Delete from database
-            db.delete(paper)
-            deleted_count += 1
+    for paper in papers:
+        # Delete JSON file
+        file_path = paper_service._get_paper_file_path(paper.paper_id)
+        if file_path.exists():
+            file_path.unlink()
+
+        # Delete from database
+        db.delete(paper)
 
     db.commit()
     return {"message": f"{deleted_count}개 논문이 삭제되었습니다.", "count": deleted_count}
@@ -278,12 +249,12 @@ def bulk_restore(paper_ids: List[str], db: Session = Depends(get_db)):
     """
     Restore multiple papers from not interested
     """
-    restored_count = 0
-    for paper_id in paper_ids:
-        paper = db.query(Paper).filter(Paper.paper_id == paper_id).first()
-        if paper:
-            paper.is_not_interested = False
-            restored_count += 1
+    # 단일 쿼리로 모든 논문 조회 (N+1 문제 해결)
+    papers = db.query(Paper).filter(Paper.paper_id.in_(paper_ids)).all()
+    restored_count = len(papers)
+
+    for paper in papers:
+        paper.is_not_interested = False
 
     db.commit()
     return {"message": f"{restored_count}개 논문이 복원되었습니다.", "count": restored_count}

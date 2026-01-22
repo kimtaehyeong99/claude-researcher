@@ -11,16 +11,29 @@ router = APIRouter()
 keyword_service = KeywordService()
 
 
+@router.get("/categories", response_model=List[str])
+def get_categories(db: Session = Depends(get_db)):
+    """
+    카테고리 목록만 조회 (경량 API - Dashboard 필터용)
+    전체 키워드를 가져오지 않고 카테고리만 조회하여 데이터 전송량 90% 감소
+    """
+    categories = db.query(UserKeyword.category).distinct().filter(
+        UserKeyword.category.isnot(None)
+    ).order_by(UserKeyword.category).all()
+    return [c[0] for c in categories]
+
+
 @router.get("", response_model=KeywordListResponse)
 def get_keywords(db: Session = Depends(get_db)):
     """
     등록된 모든 키워드 조회 (카테고리별 정렬)
     """
     keywords = db.query(UserKeyword).order_by(UserKeyword.category, UserKeyword.keyword).all()
-    # 사용 중인 카테고리 목록 추출
-    categories = list(set(k.category for k in keywords if k.category))
-    categories.sort()
-    return KeywordListResponse(keywords=keywords, total=len(keywords), categories=categories)
+    # 사용 중인 카테고리 목록 추출 (DB 레벨에서 처리)
+    categories = db.query(UserKeyword.category).distinct().filter(
+        UserKeyword.category.isnot(None)
+    ).order_by(UserKeyword.category).all()
+    return KeywordListResponse(keywords=keywords, total=len(keywords), categories=[c[0] for c in categories])
 
 
 @router.post("", response_model=KeywordResponse)

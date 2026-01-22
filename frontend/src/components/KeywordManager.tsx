@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { UserKeyword } from '../api/paperApi';
 import { getKeywords, createKeyword, deleteKeyword } from '../api/paperApi';
 
@@ -96,22 +96,26 @@ export default function KeywordManager({ onKeywordsChange }: KeywordManagerProps
     }
   };
 
-  // 카테고리별로 키워드 그룹화
-  const groupedKeywords = keywords.reduce((acc, kw) => {
-    const category = kw.category || '미분류';
-    if (!acc[category]) {
-      acc[category] = [];
-    }
-    acc[category].push(kw);
-    return acc;
-  }, {} as Record<string, UserKeyword[]>);
+  // 카테고리별로 키워드 그룹화 (useMemo로 최적화)
+  const groupedKeywords = useMemo(() => {
+    return keywords.reduce((acc, kw) => {
+      const category = kw.category || '미분류';
+      if (!acc[category]) {
+        acc[category] = [];
+      }
+      acc[category].push(kw);
+      return acc;
+    }, {} as Record<string, UserKeyword[]>);
+  }, [keywords]);
 
-  // 카테고리 정렬 (미분류는 마지막)
-  const sortedCategories = Object.keys(groupedKeywords).sort((a, b) => {
-    if (a === '미분류') return 1;
-    if (b === '미분류') return -1;
-    return a.localeCompare(b, 'ko');
-  });
+  // 카테고리 정렬 (미분류는 마지막) (useMemo로 최적화)
+  const sortedCategories = useMemo(() => {
+    return Object.keys(groupedKeywords).sort((a, b) => {
+      if (a === '미분류') return 1;
+      if (b === '미분류') return -1;
+      return a.localeCompare(b, 'ko');
+    });
+  }, [groupedKeywords]);
 
   return (
     <div className="keyword-manager">

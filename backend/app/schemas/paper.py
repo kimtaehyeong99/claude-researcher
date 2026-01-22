@@ -1,4 +1,5 @@
-from pydantic import BaseModel
+import json
+from pydantic import BaseModel, field_validator
 from datetime import date, datetime
 from typing import Optional, List
 
@@ -24,6 +25,19 @@ class PaperResponse(PaperBase):
     matched_keywords: Optional[List[str]] = None  # 매칭된 키워드 목록
     created_at: datetime
     updated_at: datetime
+
+    # JSON 문자열로 저장된 matched_keywords를 자동으로 리스트로 변환
+    @field_validator('matched_keywords', mode='before')
+    @classmethod
+    def parse_matched_keywords(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, str):
+            try:
+                return json.loads(v) if v else None
+            except json.JSONDecodeError:
+                return None
+        return v
 
     class Config:
         from_attributes = True

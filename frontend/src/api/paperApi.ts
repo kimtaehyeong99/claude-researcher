@@ -208,6 +208,12 @@ export interface KeywordListResponse {
   categories: string[];  // 사용 중인 카테고리 목록
 }
 
+// Get categories only (lightweight API for Dashboard filter)
+export const getCategories = async (): Promise<string[]> => {
+  const response = await api.get<string[]>('/keywords/categories');
+  return response.data;
+};
+
 // Get all keywords
 export const getKeywords = async (): Promise<KeywordListResponse> => {
   const response = await api.get<KeywordListResponse>('/keywords');

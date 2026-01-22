@@ -15,6 +15,20 @@ class KeywordService:
 
     def __init__(self):
         self.papers_dir = settings.PAPERS_DIR
+        self._compiled_patterns = {}  # Regex 패턴 캐시
+
+    def _get_compiled_pattern(self, keyword: str) -> re.Pattern:
+        """컴파일된 regex 패턴 반환 (캐싱)"""
+        keyword_lower = keyword.lower()
+        if keyword_lower not in self._compiled_patterns:
+            self._compiled_patterns[keyword_lower] = re.compile(
+                r'\b' + re.escape(keyword_lower) + r'\b'
+            )
+        return self._compiled_patterns[keyword_lower]
+
+    def clear_pattern_cache(self):
+        """패턴 캐시 초기화 (키워드 변경 시 호출)"""
+        self._compiled_patterns.clear()
 
     def _get_paper_abstract(self, paper_id: str) -> Optional[str]:
         """JSON 파일에서 논문 초록 조회"""
@@ -47,8 +61,8 @@ class KeywordService:
         matched = []
 
         for keyword in keywords:
-            # 대소문자 무시, 단어 경계 고려한 매칭
-            pattern = re.compile(r'\b' + re.escape(keyword.lower()) + r'\b')
+            # 캐시된 컴파일 패턴 사용
+            pattern = self._get_compiled_pattern(keyword)
             if pattern.search(text_lower):
                 matched.append(keyword)
 

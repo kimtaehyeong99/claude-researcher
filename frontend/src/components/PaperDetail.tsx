@@ -1,12 +1,10 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import type { PaperDetail as PaperDetailType } from '../api/paperApi';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
-import 'katex/dist/katex.min.css';
 import SearchStageButtons from './SearchStageButtons';
 import FavoriteButton from './FavoriteButton';
+
+// Markdown 관련 라이브러리 (~500KB) 동적 로딩
+const MarkdownRenderer = lazy(() => import('./MarkdownRenderer'));
 
 interface PaperDetailProps {
   paper: PaperDetailType;
@@ -113,11 +111,12 @@ export default function PaperDetail({
             </span>
           </div>
           {expandedSections.abstract && (
-            <div className="content-text markdown abstract-content">
-              <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
-                {paper.abstract_ko}
-              </ReactMarkdown>
-            </div>
+            <Suspense fallback={<div className="markdown-loading">내용 로딩중...</div>}>
+              <MarkdownRenderer
+                content={paper.abstract_ko}
+                className="content-text markdown abstract-content"
+              />
+            </Suspense>
           )}
         </section>
       )}
@@ -131,11 +130,12 @@ export default function PaperDetail({
             </span>
           </div>
           {expandedSections.analysis && (
-            <div className="content-text markdown analysis-content">
-              <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
-                {paper.detailed_analysis_ko}
-              </ReactMarkdown>
-            </div>
+            <Suspense fallback={<div className="markdown-loading">내용 로딩중...</div>}>
+              <MarkdownRenderer
+                content={paper.detailed_analysis_ko}
+                className="content-text markdown analysis-content"
+              />
+            </Suspense>
           )}
         </section>
       )}
