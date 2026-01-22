@@ -1,6 +1,9 @@
 import type { PaperDetail as PaperDetailType } from '../api/paperApi';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import SearchStageButtons from './SearchStageButtons';
 import FavoriteButton from './FavoriteButton';
 
@@ -77,7 +80,7 @@ export default function PaperDetail({
         <section className="content-section">
           <h2>초록 요약</h2>
           <div className="content-text markdown">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
               {paper.abstract_ko}
             </ReactMarkdown>
           </div>
@@ -88,7 +91,7 @@ export default function PaperDetail({
         <section className="content-section analysis">
           <h2>상세 분석</h2>
           <div className="content-text markdown">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
               {paper.detailed_analysis_ko}
             </ReactMarkdown>
           </div>
