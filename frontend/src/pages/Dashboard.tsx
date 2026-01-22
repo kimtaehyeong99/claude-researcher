@@ -24,31 +24,45 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [keyword, setKeyword] = useState('');
-
-  const getFiltersForTab = useCallback((tab: TabType, searchKeyword: string): PaperFilters => {
-    const base: PaperFilters = { keyword: searchKeyword || undefined };
-
-    switch (tab) {
-      case 'stage1':
-        return { ...base, stage: 1, hide_not_interested: true };
-      case 'stage2':
-        return { ...base, stage: 2, hide_not_interested: true };
-      case 'stage3':
-        return { ...base, stage: 3, hide_not_interested: true };
-      case 'favorites':
-        return { ...base, favorite: true, hide_not_interested: false };
-      case 'not_interested':
-        return { ...base, not_interested: true, hide_not_interested: false };
-      default:
-        return { ...base, hide_not_interested: true };
-    }
-  }, []);
+  const [sortBy, setSortBy] = useState<string>('created_at');
+  const [sortOrder, setSortOrder] = useState<string>('desc');
 
   const fetchPapers = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const filters = getFiltersForTab(activeTab, keyword);
+      const filters: PaperFilters = {
+        keyword: keyword || undefined,
+        sort_by: sortBy,
+        sort_order: sortOrder,
+      };
+
+      // Add tab-specific filters
+      switch (activeTab) {
+        case 'stage1':
+          filters.stage = 1;
+          filters.hide_not_interested = true;
+          break;
+        case 'stage2':
+          filters.stage = 2;
+          filters.hide_not_interested = true;
+          break;
+        case 'stage3':
+          filters.stage = 3;
+          filters.hide_not_interested = true;
+          break;
+        case 'favorites':
+          filters.favorite = true;
+          filters.hide_not_interested = false;
+          break;
+        case 'not_interested':
+          filters.not_interested = true;
+          filters.hide_not_interested = false;
+          break;
+        default:
+          filters.hide_not_interested = true;
+      }
+
       const response = await getPapers(filters);
       setPapers(response.papers);
       setTotal(response.total);
@@ -58,11 +72,11 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, keyword, getFiltersForTab]);
+  }, [activeTab, keyword, sortBy, sortOrder]);
 
   useEffect(() => {
     fetchPapers();
-  }, [fetchPapers]);
+  }, [fetchPapers, activeTab]);
 
   const handleRegisterNew = async (paperId: string) => {
     setLoading(true);
@@ -136,6 +150,17 @@ export default function Dashboard() {
     setKeyword(searchKeyword);
   };
 
+  // 검색어 변경 시 자동 조회
+  useEffect(() => {
+    fetchPapers();
+  }, [keyword, fetchPapers]);
+
+  // 정렬 기준이나 순서 변경 시 자동 정렬
+  useEffect(() => {
+    fetchPapers();
+  }, [sortBy, sortOrder, fetchPapers]);
+
+
   const tabs: { key: TabType; label: string }[] = [
     { key: 'all', label: '전체' },
     { key: 'stage1', label: '미분석' },
@@ -176,6 +201,24 @@ export default function Dashboard() {
 
           <div className="filters-section">
             <SearchBar onSearch={handleSearch} placeholder="제목으로 검색..." />
+            <div className="sort-controls">
+              <label>
+                정렬:
+                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                  <option value="created_at">등록일</option>
+                  <option value="arxiv_date">arXiv 등록일</option>
+                  <option value="search_stage">분석 단계</option>
+                  <option value="citation_count">인용수</option>
+                </select>
+              </label>
+              <label>
+                순서:
+                <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)}>
+                  <option value="desc">높은순</option>
+                  <option value="asc">낮은순</option>
+                </select>
+              </label>
+            </div>
           </div>
 
           {error && <div className="error-message">{error}</div>}

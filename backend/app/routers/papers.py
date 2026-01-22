@@ -19,11 +19,13 @@ def get_papers(
     not_interested: Optional[bool] = Query(None, description="Filter by not interested status"),
     hide_not_interested: Optional[bool] = Query(True, description="Hide not interested papers"),
     keyword: Optional[str] = Query(None, description="Search in title"),
+    sort_by: str = Query("created_at", description="Sort by: created_at, arxiv_date, search_stage, or citation_count"),
+    sort_order: str = Query("desc", description="Sort order: asc or desc"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
 ):
     """
-    Get list of papers with optional filters
+    Get list of papers with optional filters and sorting
     """
     query = db.query(Paper)
 
@@ -45,8 +47,20 @@ def get_papers(
     # Get total count
     total = query.count()
 
-    # Apply pagination and ordering
-    papers = query.order_by(Paper.created_at.desc()).offset(skip).limit(limit).all()
+    # Apply sorting
+    sort_columns = {
+        "created_at": Paper.created_at,
+        "arxiv_date": Paper.arxiv_date,
+        "search_stage": Paper.search_stage,
+        "citation_count": Paper.citation_count,
+    }
+
+    sort_column = sort_columns.get(sort_by, Paper.created_at)
+
+    if sort_order.lower() == "asc":
+        papers = query.order_by(sort_column.asc()).offset(skip).limit(limit).all()
+    else:
+        papers = query.order_by(sort_column.desc()).offset(skip).limit(limit).all()
 
     return PaperListResponse(papers=papers, total=total)
 

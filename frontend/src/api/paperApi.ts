@@ -39,6 +39,8 @@ export interface PaperFilters {
   not_interested?: boolean;
   hide_not_interested?: boolean;
   keyword?: string;
+  sort_by?: string;
+  sort_order?: string;
   skip?: number;
   limit?: number;
 }
@@ -51,6 +53,8 @@ export const getPapers = async (filters: PaperFilters = {}): Promise<PaperListRe
   if (filters.not_interested !== undefined) params.append('not_interested', filters.not_interested.toString());
   if (filters.hide_not_interested !== undefined) params.append('hide_not_interested', filters.hide_not_interested.toString());
   if (filters.keyword) params.append('keyword', filters.keyword);
+  if (filters.sort_by) params.append('sort_by', filters.sort_by);
+  if (filters.sort_order) params.append('sort_order', filters.sort_order);
   if (filters.skip !== undefined) params.append('skip', filters.skip.toString());
   if (filters.limit !== undefined) params.append('limit', filters.limit.toString());
 
