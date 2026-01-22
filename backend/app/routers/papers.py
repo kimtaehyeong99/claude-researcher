@@ -1,3 +1,4 @@
+import json
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional, List
@@ -6,6 +7,16 @@ from app.database import get_db
 from app.models.paper import Paper
 from app.schemas.paper import PaperResponse, PaperDetailResponse, PaperListResponse
 from app.services.paper_service import PaperService
+
+
+def parse_matched_keywords(keywords_str: Optional[str]) -> Optional[List[str]]:
+    """JSON 문자열로 저장된 matched_keywords를 리스트로 변환"""
+    if not keywords_str:
+        return None
+    try:
+        return json.loads(keywords_str)
+    except json.JSONDecodeError:
+        return None
 
 router = APIRouter()
 paper_service = PaperService()
@@ -19,6 +30,8 @@ def get_papers(
     not_interested: Optional[bool] = Query(None, description="Filter by not interested status"),
     hide_not_interested: Optional[bool] = Query(True, description="Hide not interested papers"),
     keyword: Optional[str] = Query(None, description="Search in title"),
+    matched_category: Optional[str] = Query(None, description="Filter by matched keyword category"),
+    no_category_match: Optional[bool] = Query(None, description="Filter papers with no category match"),
     sort_by: str = Query("created_at", description="Sort by: created_at, arxiv_date, search_stage, or citation_count"),
     sort_order: str = Query("desc", description="Sort order: asc or desc"),
     skip: int = Query(0, ge=0),
@@ -27,6 +40,8 @@ def get_papers(
     """
     Get list of papers with optional filters and sorting
     """
+    from app.models.keyword import UserKeyword
+
     query = db.query(Paper)
 
     # Apply filters
@@ -43,6 +58,39 @@ def get_papers(
 
     if keyword:
         query = query.filter(Paper.title.ilike(f"%{keyword}%"))
+
+    # 카테고리 필터링
+    if matched_category:
+        # 해당 카테고리의 키워드 목록 조회
+        category_keywords = db.query(UserKeyword).filter(
+            UserKeyword.category == matched_category
+        ).all()
+        keyword_list = [kw.keyword for kw in category_keywords]
+        if keyword_list:
+            # matched_keywords JSON에 해당 키워드가 포함된 논문만 필터
+            from sqlalchemy import or_
+            conditions = [Paper.matched_keywords.ilike(f'%"{kw}"%') for kw in keyword_list]
+            query = query.filter(or_(*conditions))
+        else:
+            # 해당 카테고리에 키워드가 없으면 결과 없음
+            query = query.filter(False)
+
+    if no_category_match:
+        # 모든 등록된 키워드 조회
+        all_keywords = db.query(UserKeyword).all()
+        keyword_list = [kw.keyword for kw in all_keywords]
+        if keyword_list:
+            # matched_keywords가 null이거나 어떤 키워드도 포함하지 않는 논문
+            from sqlalchemy import or_, and_
+            no_match_conditions = []
+            for kw in keyword_list:
+                no_match_conditions.append(~Paper.matched_keywords.ilike(f'%"{kw}"%'))
+            query = query.filter(
+                or_(
+                    Paper.matched_keywords.is_(None),
+                    and_(*no_match_conditions)
+                )
+            )
 
     # Get total count
     total = query.count()
@@ -62,7 +110,27 @@ def get_papers(
     else:
         papers = query.order_by(sort_column.desc()).offset(skip).limit(limit).all()
 
-    return PaperListResponse(papers=papers, total=total)
+    # matched_keywords JSON 문자열을 리스트로 변환
+    paper_responses = []
+    for paper in papers:
+        response = PaperResponse(
+            id=paper.id,
+            paper_id=paper.paper_id,
+            arxiv_date=paper.arxiv_date,
+            title=paper.title,
+            search_stage=paper.search_stage,
+            is_favorite=paper.is_favorite,
+            is_not_interested=paper.is_not_interested,
+            citation_count=paper.citation_count,
+            registered_by=paper.registered_by,
+            figure_url=paper.figure_url,
+            matched_keywords=parse_matched_keywords(paper.matched_keywords),
+            created_at=paper.created_at,
+            updated_at=paper.updated_at,
+        )
+        paper_responses.append(response)
+
+    return PaperListResponse(papers=paper_responses, total=total)
 
 
 @router.get("/{paper_id}", response_model=PaperDetailResponse)
@@ -86,6 +154,8 @@ def get_paper(paper_id: str, db: Session = Depends(get_db)):
         is_favorite=paper.is_favorite,
         is_not_interested=paper.is_not_interested,
         citation_count=paper.citation_count,
+        registered_by=paper.registered_by,
+        figure_url=paper.figure_url,
         created_at=paper.created_at,
         updated_at=paper.updated_at,
     )
@@ -93,6 +163,9 @@ def get_paper(paper_id: str, db: Session = Depends(get_db)):
     if paper_data:
         response.abstract_ko = paper_data.get("abstract_ko")
         response.detailed_analysis_ko = paper_data.get("detailed_analysis_ko")
+        # JSON 파일에 figure_url이 있으면 사용 (DB보다 우선)
+        if paper_data.get("figure_url"):
+            response.figure_url = paper_data.get("figure_url")
 
     return response
 
@@ -160,3 +233,57 @@ def delete_paper(paper_id: str, db: Session = Depends(get_db)):
         file_path.unlink()
 
     return {"message": "Paper deleted successfully"}
+
+
+@router.post("/bulk/not-interested")
+def bulk_not_interested(paper_ids: List[str], db: Session = Depends(get_db)):
+    """
+    Mark multiple papers as not interested
+    """
+    updated_count = 0
+    for paper_id in paper_ids:
+        paper = db.query(Paper).filter(Paper.paper_id == paper_id).first()
+        if paper:
+            paper.is_not_interested = True
+            updated_count += 1
+
+    db.commit()
+    return {"message": f"{updated_count}개 논문이 관심없음 처리되었습니다.", "count": updated_count}
+
+
+@router.post("/bulk/delete")
+def bulk_delete(paper_ids: List[str], db: Session = Depends(get_db)):
+    """
+    Delete multiple papers from database and file system
+    """
+    deleted_count = 0
+    for paper_id in paper_ids:
+        paper = db.query(Paper).filter(Paper.paper_id == paper_id).first()
+        if paper:
+            # Delete JSON file
+            file_path = paper_service._get_paper_file_path(paper_id)
+            if file_path.exists():
+                file_path.unlink()
+
+            # Delete from database
+            db.delete(paper)
+            deleted_count += 1
+
+    db.commit()
+    return {"message": f"{deleted_count}개 논문이 삭제되었습니다.", "count": deleted_count}
+
+
+@router.post("/bulk/restore")
+def bulk_restore(paper_ids: List[str], db: Session = Depends(get_db)):
+    """
+    Restore multiple papers from not interested
+    """
+    restored_count = 0
+    for paper_id in paper_ids:
+        paper = db.query(Paper).filter(Paper.paper_id == paper_id).first()
+        if paper:
+            paper.is_not_interested = False
+            restored_count += 1
+
+    db.commit()
+    return {"message": f"{restored_count}개 논문이 복원되었습니다.", "count": restored_count}

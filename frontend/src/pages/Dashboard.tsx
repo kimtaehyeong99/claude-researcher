@@ -9,12 +9,28 @@ import {
   toggleNotInterested,
   updateCitationCount,
   deletePaper,
+  bulkNotInterested,
+  bulkDeletePapers,
+  bulkRestorePapers,
+  getKeywords,
 } from '../api/paperApi';
 import PaperList from '../components/PaperList';
 import RegisterForm from '../components/RegisterForm';
 import SearchBar from '../components/SearchBar';
+import KeywordManager from '../components/KeywordManager';
 
 type TabType = 'all' | 'stage1' | 'stage2' | 'stage3' | 'favorites' | 'not_interested';
+
+const PAGE_SIZE = 10;
+
+// localStorage 키
+const STORAGE_KEYS = {
+  SORT_BY: 'dashboard_sortBy',
+  SORT_ORDER: 'dashboard_sortOrder',
+  ACTIVE_TAB: 'dashboard_activeTab',
+  CURRENT_PAGE: 'dashboard_currentPage',
+  CATEGORY_FILTER: 'dashboard_categoryFilter',
+};
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -22,12 +38,42 @@ export default function Dashboard() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>('all');
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.ACTIVE_TAB);
+    return (saved as TabType) || 'all';
+  });
   const [keyword, setKeyword] = useState('');
-  const [sortBy, setSortBy] = useState<string>('created_at');
-  const [sortOrder, setSortOrder] = useState<string>('desc');
+  const [sortBy, setSortBy] = useState<string>(() => {
+    return localStorage.getItem(STORAGE_KEYS.SORT_BY) || 'created_at';
+  });
+  const [sortOrder, setSortOrder] = useState<string>(() => {
+    return localStorage.getItem(STORAGE_KEYS.SORT_ORDER) || 'desc';
+  });
+  const [currentPage, setCurrentPage] = useState<number>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_PAGE);
+    return saved ? parseInt(saved, 10) : 1;
+  });
+  // 카테고리 필터 상태
+  const [categories, setCategories] = useState<string[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState<string>(() => {
+    return localStorage.getItem(STORAGE_KEYS.CATEGORY_FILTER) || '';
+  });
 
-  const fetchPapers = useCallback(async () => {
+  // 카테고리 목록 조회
+  const fetchCategories = useCallback(async () => {
+    try {
+      const response = await getKeywords();
+      setCategories(response.categories || []);
+    } catch (err) {
+      console.error('카테고리 로드 실패:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
+  const fetchPapers = useCallback(async (page: number = currentPage) => {
     setLoading(true);
     setError(null);
     try {
@@ -35,6 +81,8 @@ export default function Dashboard() {
         keyword: keyword || undefined,
         sort_by: sortBy,
         sort_order: sortOrder,
+        skip: (page - 1) * PAGE_SIZE,
+        limit: PAGE_SIZE,
       };
 
       // Add tab-specific filters
@@ -63,6 +111,13 @@ export default function Dashboard() {
           filters.hide_not_interested = true;
       }
 
+      // 카테고리 필터 적용
+      if (categoryFilter === '__no_match__') {
+        filters.no_category_match = true;
+      } else if (categoryFilter) {
+        filters.matched_category = categoryFilter;
+      }
+
       const response = await getPapers(filters);
       setPapers(response.papers);
       setTotal(response.total);
@@ -72,7 +127,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, keyword, sortBy, sortOrder]);
+  }, [activeTab, keyword, sortBy, sortOrder, currentPage, categoryFilter]);
 
   useEffect(() => {
     fetchPapers();
@@ -142,12 +197,93 @@ export default function Dashboard() {
     }
   };
 
+  // 일괄 처리 핸들러
+  const handleBulkNotInterested = async (paperIds: string[]) => {
+    setLoading(true);
+    try {
+      const result = await bulkNotInterested(paperIds);
+      alert(result.message);
+      await fetchPapers();
+    } catch (err) {
+      console.error('일괄 관심없음 처리 실패:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async (paperIds: string[]) => {
+    setLoading(true);
+    try {
+      const result = await bulkDeletePapers(paperIds);
+      alert(result.message);
+      await fetchPapers();
+    } catch (err) {
+      console.error('일괄 삭제 실패:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBulkRestore = async (paperIds: string[]) => {
+    setLoading(true);
+    try {
+      const result = await bulkRestorePapers(paperIds);
+      alert(result.message);
+      await fetchPapers();
+    } catch (err) {
+      console.error('일괄 복원 실패:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handlePaperClick = (paperId: string) => {
     navigate(`/paper/${encodeURIComponent(paperId)}`);
   };
 
   const handleSearch = (searchKeyword: string) => {
     setKeyword(searchKeyword);
+    setCurrentPage(1);
+    localStorage.setItem(STORAGE_KEYS.CURRENT_PAGE, '1');
+  };
+
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    setCurrentPage(1);
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, tab);
+    localStorage.setItem(STORAGE_KEYS.CURRENT_PAGE, '1');
+  };
+
+  const handleSortByChange = (value: string) => {
+    setSortBy(value);
+    setCurrentPage(1);
+    localStorage.setItem(STORAGE_KEYS.SORT_BY, value);
+    localStorage.setItem(STORAGE_KEYS.CURRENT_PAGE, '1');
+  };
+
+  const handleSortOrderChange = (value: string) => {
+    setSortOrder(value);
+    setCurrentPage(1);
+    localStorage.setItem(STORAGE_KEYS.SORT_ORDER, value);
+    localStorage.setItem(STORAGE_KEYS.CURRENT_PAGE, '1');
+  };
+
+  const handleCategoryFilterChange = (value: string) => {
+    setCategoryFilter(value);
+    setCurrentPage(1);
+    localStorage.setItem(STORAGE_KEYS.CATEGORY_FILTER, value);
+    localStorage.setItem(STORAGE_KEYS.CURRENT_PAGE, '1');
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    localStorage.setItem(STORAGE_KEYS.CURRENT_PAGE, page.toString());
+  };
+
+  // 키워드 변경 시 카테고리 목록도 갱신
+  const handleKeywordsChange = () => {
+    fetchCategories();
+    fetchPapers();
   };
 
   // 검색어 변경 시 자동 조회
@@ -155,16 +291,16 @@ export default function Dashboard() {
     fetchPapers();
   }, [keyword, fetchPapers]);
 
-  // 정렬 기준이나 순서 변경 시 자동 정렬
+  // 정렬 기준이나 순서, 카테고리 변경 시 자동 조회
   useEffect(() => {
     fetchPapers();
-  }, [sortBy, sortOrder, fetchPapers]);
+  }, [sortBy, sortOrder, categoryFilter, fetchPapers]);
 
 
   const tabs: { key: TabType; label: string }[] = [
     { key: 'all', label: '전체' },
     { key: 'stage1', label: '미분석' },
-    { key: 'stage2', label: '요약 완료' },
+    { key: 'stage2', label: '개요 분석' },
     { key: 'stage3', label: '상세 분석' },
     { key: 'favorites', label: '즐겨찾기' },
     { key: 'not_interested', label: '관심없음' },
@@ -174,7 +310,7 @@ export default function Dashboard() {
     <div className="dashboard">
       <header className="dashboard-header">
         <h1>Paper Researcher</h1>
-        <p>논문 검색 툴</p>
+        <p>논문 검색 사이트</p>
       </header>
 
       <div className="dashboard-content">
@@ -184,6 +320,13 @@ export default function Dashboard() {
             onRegisterCitations={handleRegisterCitations}
             loading={loading}
           />
+          <KeywordManager onKeywordsChange={handleKeywordsChange} />
+          <button
+            className="daily-papers-link"
+            onClick={() => navigate('/daily-papers')}
+          >
+            📰 HuggingFace Daily Papers →
+          </button>
         </aside>
 
         <main className="main-content">
@@ -192,7 +335,7 @@ export default function Dashboard() {
               <button
                 key={tab.key}
                 className={`tab-button ${activeTab === tab.key ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => handleTabChange(tab.key)}
               >
                 {tab.label}
               </button>
@@ -201,10 +344,22 @@ export default function Dashboard() {
 
           <div className="filters-section">
             <SearchBar onSearch={handleSearch} placeholder="제목으로 검색..." />
-            <div className="sort-controls">
+            <div className="sort-controls-box">
+              <label>
+                카테고리:
+                <select value={categoryFilter} onChange={(e) => handleCategoryFilterChange(e.target.value)}>
+                  <option value="">전체</option>
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                  {categories.length > 0 && (
+                    <option value="__no_match__">카테고리 미해당</option>
+                  )}
+                </select>
+              </label>
               <label>
                 정렬:
-                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                <select value={sortBy} onChange={(e) => handleSortByChange(e.target.value)}>
                   <option value="created_at">등록일</option>
                   <option value="arxiv_date">arXiv 등록일</option>
                   <option value="search_stage">분석 단계</option>
@@ -213,7 +368,7 @@ export default function Dashboard() {
               </label>
               <label>
                 순서:
-                <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)}>
+                <select value={sortOrder} onChange={(e) => handleSortOrderChange(e.target.value)}>
                   <option value="desc">높은순</option>
                   <option value="asc">낮은순</option>
                 </select>
@@ -225,6 +380,9 @@ export default function Dashboard() {
 
           <div className="list-header">
             <span>총 {total}개 논문</span>
+            <span className="page-info">
+              {total > 0 && `(${currentPage} / ${Math.ceil(total / PAGE_SIZE)} 페이지)`}
+            </span>
           </div>
 
           <PaperList
@@ -234,9 +392,67 @@ export default function Dashboard() {
             onToggleNotInterested={handleToggleNotInterested}
             onUpdateCitation={handleUpdateCitation}
             onDelete={handleDelete}
+            onBulkNotInterested={handleBulkNotInterested}
+            onBulkDelete={handleBulkDelete}
+            onBulkRestore={handleBulkRestore}
             loading={loading}
             isNotInterestedTab={activeTab === 'not_interested'}
           />
+
+          {/* 페이지네이션 */}
+          {total > PAGE_SIZE && (
+            <div className="pagination">
+              <button
+                onClick={() => handlePageChange(1)}
+                disabled={currentPage === 1}
+                className="page-btn"
+              >
+                «
+              </button>
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="page-btn"
+              >
+                ‹
+              </button>
+
+              {Array.from({ length: Math.ceil(total / PAGE_SIZE) }, (_, i) => i + 1)
+                .filter(page => {
+                  const totalPages = Math.ceil(total / PAGE_SIZE);
+                  if (totalPages <= 7) return true;
+                  if (page === 1 || page === totalPages) return true;
+                  if (Math.abs(page - currentPage) <= 2) return true;
+                  return false;
+                })
+                .map((page, idx, arr) => (
+                  <span key={page}>
+                    {idx > 0 && arr[idx - 1] !== page - 1 && <span className="page-ellipsis">...</span>}
+                    <button
+                      onClick={() => handlePageChange(page)}
+                      className={`page-btn ${currentPage === page ? 'active' : ''}`}
+                    >
+                      {page}
+                    </button>
+                  </span>
+                ))}
+
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage >= Math.ceil(total / PAGE_SIZE)}
+                className="page-btn"
+              >
+                ›
+              </button>
+              <button
+                onClick={() => handlePageChange(Math.ceil(total / PAGE_SIZE))}
+                disabled={currentPage >= Math.ceil(total / PAGE_SIZE)}
+                className="page-btn"
+              >
+                »
+              </button>
+            </div>
+          )}
         </main>
       </div>
     </div>

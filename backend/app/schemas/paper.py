@@ -20,6 +20,8 @@ class PaperResponse(PaperBase):
     is_not_interested: bool
     citation_count: int
     registered_by: Optional[str] = None  # 등록자 이름
+    figure_url: Optional[str] = None  # 논문 첫 Figure 이미지 URL
+    matched_keywords: Optional[List[str]] = None  # 매칭된 키워드 목록
     created_at: datetime
     updated_at: datetime
 

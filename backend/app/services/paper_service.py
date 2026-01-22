@@ -10,6 +10,7 @@ from app.models.paper import Paper
 from app.services.arxiv_service import ArxivService
 from app.services.semantic_service import SemanticScholarService
 from app.services.claude_service import ClaudeService
+from app.services.ar5iv_service import Ar5ivService
 
 
 class PaperService:
@@ -19,6 +20,7 @@ class PaperService:
         self.arxiv = ArxivService()
         self.semantic = SemanticScholarService()
         self.claude = ClaudeService()
+        self.ar5iv = Ar5ivService()
         self.papers_dir = settings.PAPERS_DIR
 
     def _get_paper_file_path(self, paper_id: str) -> Path:
@@ -213,6 +215,12 @@ class PaperService:
             paper_data["abstract_ko"] = abstract_ko
         else:
             paper_data["abstract_ko"] = "(초록을 가져올 수 없습니다.)"
+
+        # ar5iv에서 첫 번째 Figure 이미지 URL 추출
+        figure_url = await self.ar5iv.get_first_figure_url(paper_id)
+        if figure_url:
+            paper_data["figure_url"] = figure_url
+            paper.figure_url = figure_url
 
         # Update stage
         paper_data["search_stage"] = 2

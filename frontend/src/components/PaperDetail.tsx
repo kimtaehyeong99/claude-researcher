@@ -77,11 +77,23 @@ export default function PaperDetail({
           )}
         </span>
         <span className={`stage-badge stage-${paper.search_stage}`}>
-          {paper.search_stage === 1 ? '미분석' : paper.search_stage === 2 ? '요약 완료' : '상세 분석'}
+          {paper.search_stage === 1 ? '미분석' : paper.search_stage === 2 ? '개요 분석' : '상세 분석'}
         </span>
       </div>
 
       <h1 className="paper-title">{paper.title || '제목 없음'}</h1>
+
+      {paper.figure_url && (
+        <section className="paper-figure">
+          <img
+            src={paper.figure_url}
+            alt="Paper figure"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />
+        </section>
+      )}
 
       <SearchStageButtons
         currentStage={paper.search_stage}

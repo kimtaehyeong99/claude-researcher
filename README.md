@@ -1,6 +1,6 @@
 # Paper Researcher
 
-논문 검색 툴 - arXiv 논문을 수집하고 Claude CLI를 활용하여 한국어로 정리/분석합니다.
+논문 검색 사이트 - arXiv 논문을 수집하고 Claude CLI를 활용하여 한국어로 정리/분석합니다.
 
 ## 주요 기능
 
@@ -19,6 +19,10 @@
 - **관심없음**: 관심 없는 논문 숨기기 (되돌리기 가능)
 - **키워드 검색**: 제목 기반 검색
 - **단계별 필터링**: 1단계/2단계/3단계별 논문 분류 보기
+- **HuggingFace Daily Papers**: 최신 인기 논문 조회 및 등록
+- **논문 Figure 추출**: ar5iv에서 첫 번째 Figure 이미지 자동 추출
+- **키워드 필터링**: 관심 키워드 등록 및 자동 매칭 (카테고리별 관리)
+- **카테고리 필터**: 키워드 카테고리별 논문 필터링
 
 ## 기술 스택
 
@@ -121,11 +125,31 @@ npm run dev
 
 상단 탭을 사용하여 논문 필터링:
 - **전체**: 모든 논문 (관심없음 제외)
-- **1단계**: 등록만 된 논문
-- **2단계**: 간단 서칭 완료된 논문
-- **3단계**: 딥 서칭 완료된 논문
+- **미분석**: 등록만 된 논문 (1단계)
+- **개요 분석**: 간단 서칭 완료된 논문 (2단계)
+- **상세 분석**: 딥 서칭 완료된 논문 (3단계)
 - **즐겨찾기**: 북마크된 논문
 - **관심없음**: 숨긴 논문
+
+카테고리 드롭다운을 사용하여 추가 필터링:
+- **전체**: 모든 논문
+- **[카테고리명]**: 해당 카테고리 키워드가 매칭된 논문
+- **카테고리 미해당**: 어떤 키워드도 매칭되지 않은 논문
+
+### 7. 키워드 관리
+
+1. 왼쪽 사이드바에서 **"관심 키워드"** 섹션 펼치기
+2. 키워드와 카테고리(선택) 입력 후 **"추가"** 클릭
+3. 같은 카테고리 내에서는 중복 키워드 불가 (다른 카테고리에는 동일 키워드 가능)
+4. 카테고리별로 자동으로 색상이 할당됨
+5. 논문의 제목/초록에서 키워드 자동 매칭
+
+### 8. HuggingFace Daily Papers
+
+1. 대시보드에서 **"📰 HuggingFace Daily Papers"** 버튼 클릭
+2. 날짜별 인기 논문 목록 확인
+3. upvotes 수, AI 요약, GitHub 링크 제공
+4. **"등록"** 버튼으로 바로 논문 등록 가능
 
 ## 폴더 구조
 
@@ -161,16 +185,25 @@ claude_researcher/
 ### SQLite Database (papers.db)
 
 빠른 조회/필터링을 위한 메타데이터 저장:
+
+**papers 테이블:**
 - paper_id, title, arxiv_date
 - search_stage (1, 2, 3)
 - is_favorite, is_not_interested
-- citation_count, created_at, updated_at
+- citation_count, registered_by
+- figure_url, matched_keywords (JSON)
+- created_at, updated_at
+
+**user_keywords 테이블:**
+- keyword, category, color
+- 같은 카테고리 내에서 키워드 중복 불가 (UniqueConstraint)
 
 ### JSON Files (backend/papers/)
 
 긴 텍스트 데이터 저장:
 - abstract_ko (2단계: 초록 요약)
 - detailed_analysis_ko (3단계: 전체 논문 분석)
+- figure_url (2단계: ar5iv에서 추출한 Figure 이미지 URL)
 
 ## API 엔드포인트
 
@@ -185,6 +218,12 @@ claude_researcher/
 | PATCH | /api/papers/{paper_id}/favorite | 즐겨찾기 토글 |
 | PATCH | /api/papers/{paper_id}/not-interested | 관심없음 토글 |
 | DELETE | /api/papers/{paper_id} | 논문 삭제 |
+| GET | /api/keywords | 키워드 목록 조회 |
+| POST | /api/keywords | 키워드 추가 |
+| DELETE | /api/keywords/{id} | 키워드 삭제 |
+| PATCH | /api/keywords/{id} | 키워드 수정 |
+| POST | /api/keywords/batch-update | 모든 논문 키워드 재매칭 |
+| GET | /api/trending/daily | HuggingFace Daily Papers 조회 |
 
 ## 문제 해결
 
