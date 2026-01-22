@@ -1,0 +1,66 @@
+# Environment variables (민감한 정보 - 절대 커밋하지 말 것)
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Database (로컬 데이터베이스 - 커밋 금지)
+*.db
+*.sqlite3
+backend/database.db
+
+# Papers data (생성된 데이터 - 커밋 금지)
+backend/papers/
+backend/papers/**/*.json
+
+# Node.js
+node_modules/
+.npm
+package-lock.json
+
+# Vite
+frontend/dist/
+frontend/.vite/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.pytest_cache
