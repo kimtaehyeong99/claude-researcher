@@ -11,6 +11,7 @@ from app.services.arxiv_service import ArxivService
 from app.services.semantic_service import SemanticScholarService
 from app.services.claude_service import ClaudeService
 from app.services.ar5iv_service import Ar5ivService
+from app.services.keyword_service import KeywordService
 
 
 class PaperService:
@@ -21,6 +22,7 @@ class PaperService:
         self.semantic = SemanticScholarService()
         self.claude = ClaudeService()
         self.ar5iv = Ar5ivService()
+        self.keyword_service = KeywordService()
         self.papers_dir = settings.PAPERS_DIR
 
     def _get_paper_file_path(self, paper_id: str) -> Path:
@@ -100,6 +102,11 @@ class PaperService:
         }
         self._save_paper_file(paper_id, paper_data)
 
+        # 키워드 매칭 (제목 + 초록)
+        self.keyword_service.update_paper_keywords(db, paper)
+        db.commit()
+        db.refresh(paper)
+
         return paper
 
     async def register_citing_papers(
@@ -177,6 +184,12 @@ class PaperService:
             existing_paper_ids.add(citing_id)  # Add to set to avoid duplicates within batch
 
         db.commit()
+
+        # 등록된 논문들의 키워드 매칭 (batch 후)
+        for paper in registered:
+            self.keyword_service.update_paper_keywords(db, paper)
+        db.commit()
+
         print(f"[PaperService] Successfully registered {len(registered)} new citing papers")
         return registered
 
