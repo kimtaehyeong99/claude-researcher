@@ -540,7 +540,7 @@ body {
 
 /* Paper Detail Page */
 .paper-view-page {
-  max-width: 900px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
 }
@@ -632,25 +632,123 @@ body {
 /* Content Sections */
 .content-section {
   margin-top: 2rem;
-  padding-top: 2rem;
-  border-top: 1px solid #eee;
+  padding: 2rem;
+  border-radius: 12px;
+  border: 1px solid #e0e0e0;
+}
+
+.abstract-section {
+  background: #e7f2ff;
+  border-left: 4px solid #2563eb;
+}
+
+.analysis-section {
+  background: #dcfce7;
+  border-left: 4px solid #16a34a;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  padding: 0.5rem 0;
+  margin-bottom: 1rem;
+  transition: opacity 0.2s;
+}
+
+.section-header:hover {
+  opacity: 0.8;
+}
+
+.section-header h2 {
+  margin: 0;
+  flex: 1;
+}
+
+.toggle-icon {
+  font-size: 0.8rem;
+  color: #2563eb;
+  margin-left: 0.5rem;
+  min-width: 20px;
+  text-align: center;
+  transition: transform 0.2s;
+  font-weight: 600;
+}
+
+.abstract-section .toggle-icon {
+  color: #2563eb;
+}
+
+.analysis-section .toggle-icon {
+  color: #16a34a;
 }
 
 .content-section h2 {
-  font-size: 1.2rem;
+  font-size: 1.3rem;
   color: #333;
-  margin: 0 0 1rem;
+  margin: 0;
 }
 
 .content-text {
-  line-height: 1.8;
+  line-height: 1.9;
   color: #444;
   white-space: pre-wrap;
+  font-size: 1rem;
+}
+
+.abstract-content {
+  color: #000;
+  background: #f0f8ff;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin: 1rem 0;
+}
+
+.abstract-content h1,
+.abstract-content h2,
+.abstract-content h3,
+.abstract-content h4,
+.abstract-content h5,
+.abstract-content h6,
+.abstract-content p,
+.abstract-content li,
+.abstract-content strong,
+.abstract-content b,
+.abstract-content em,
+.abstract-content i {
+  color: #000 !important;
+}
+
+.analysis-content {
+  color: #000;
+  background: #f0fdf4;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin: 1rem 0;
+}
+
+.analysis-content h1,
+.analysis-content h2,
+.analysis-content h3,
+.analysis-content h4,
+.analysis-content h5,
+.analysis-content h6,
+.analysis-content p,
+.analysis-content li,
+.analysis-content strong,
+.analysis-content b,
+.analysis-content em,
+.analysis-content i {
+  color: #000 !important;
 }
 
 /* Markdown Styles */
 .content-text.markdown {
   white-space: normal;
+  font-size: 1.05rem;
+  font-weight: 400;
 }
 
 .content-text.markdown h1,
@@ -659,61 +757,67 @@ body {
 .content-text.markdown h4,
 .content-text.markdown h5,
 .content-text.markdown h6 {
-  color: #333;
-  margin: 1.5rem 0 0.5rem;
-  font-weight: 600;
+  margin: 1.8rem 0 0.8rem;
+  font-weight: 700;
 }
 
 .content-text.markdown h1 {
-  font-size: 1.8rem;
-  border-bottom: 2px solid #667eea;
+  font-size: 2rem;
+  border-bottom: 3px solid #667eea;
   padding-bottom: 0.5rem;
 }
 
 .content-text.markdown h2 {
-  font-size: 1.5rem;
+  font-size: 1.7rem;
 }
 
 .content-text.markdown h3 {
-  font-size: 1.2rem;
+  font-size: 1.4rem;
 }
 
 .content-text.markdown h4 {
-  font-size: 1.1rem;
+  font-size: 1.2rem;
 }
 
 .content-text.markdown p {
-  margin: 0.8rem 0;
+  margin: 1rem 0;
+  font-size: 1.05rem;
+  line-height: 1.9;
 }
 
 .content-text.markdown ul,
 .content-text.markdown ol {
-  margin: 1rem 0;
-  padding-left: 2rem;
+  margin: 1.5rem 0;
+  padding-left: 2.5rem;
 }
 
 .content-text.markdown li {
-  margin: 0.5rem 0;
+  margin: 0.7rem 0;
+  font-size: 1.05rem;
 }
 
 .content-text.markdown strong,
 .content-text.markdown b {
-  color: #333;
+  color: #222;
   font-weight: 700;
+  font-size: 1.08rem;
 }
 
 .content-text.markdown em,
 .content-text.markdown i {
   font-style: italic;
   color: #555;
+  font-size: 1.05rem;
 }
 
 .content-text.markdown code {
   background: #f0f0f0;
-  padding: 0.2rem 0.4rem;
+  padding: 0.3rem 0.6rem;
   border-radius: 4px;
   font-family: 'Courier New', monospace;
-  font-size: 0.9em;
+  font-size: 0.95em;
+  color: #d63384;
+  font-weight: 500;
 }
 
 .content-text.markdown pre {
@@ -770,12 +874,6 @@ body {
   margin: 2rem 0;
 }
 
-.content-section.analysis {
-  background: #f8f9fa;
-  margin: 2rem -2rem -2rem;
-  padding: 2rem;
-  border-radius: 0 0 12px 12px;
-}
 
 /* External Links */
 .external-links {

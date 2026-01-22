@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { PaperDetail as PaperDetailType } from '../api/paperApi';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -26,6 +27,21 @@ export default function PaperDetail({
   onBack,
   loading,
 }: PaperDetailProps) {
+  const [expandedSections, setExpandedSections] = useState<{
+    abstract: boolean;
+    analysis: boolean;
+  }>({
+    abstract: true,
+    analysis: true,
+  });
+
+  const toggleSection = (section: 'abstract' | 'analysis') => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
+
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleDateString('ko-KR');
@@ -77,24 +93,38 @@ export default function PaperDetail({
       {loading && <div className="loading-indicator">처리 중...</div>}
 
       {paper.search_stage >= 2 && paper.abstract_ko && (
-        <section className="content-section">
-          <h2>초록 요약</h2>
-          <div className="content-text markdown">
-            <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
-              {paper.abstract_ko}
-            </ReactMarkdown>
+        <section className="content-section abstract-section">
+          <div className="section-header" onClick={() => toggleSection('abstract')}>
+            <h2>초록 요약</h2>
+            <span className="toggle-icon">
+              {expandedSections.abstract ? '▼' : '▶'}
+            </span>
           </div>
+          {expandedSections.abstract && (
+            <div className="content-text markdown abstract-content">
+              <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
+                {paper.abstract_ko}
+              </ReactMarkdown>
+            </div>
+          )}
         </section>
       )}
 
       {paper.search_stage >= 3 && paper.detailed_analysis_ko && (
-        <section className="content-section analysis">
-          <h2>상세 분석</h2>
-          <div className="content-text markdown">
-            <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
-              {paper.detailed_analysis_ko}
-            </ReactMarkdown>
+        <section className="content-section analysis-section">
+          <div className="section-header" onClick={() => toggleSection('analysis')}>
+            <h2>상세 분석</h2>
+            <span className="toggle-icon">
+              {expandedSections.analysis ? '▼' : '▶'}
+            </span>
           </div>
+          {expandedSections.analysis && (
+            <div className="content-text markdown analysis-content">
+              <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
+                {paper.detailed_analysis_ko}
+              </ReactMarkdown>
+            </div>
+          )}
         </section>
       )}
 
@@ -105,7 +135,7 @@ export default function PaperDetail({
           rel="noopener noreferrer"
           className="external-link"
         >
-          arXiv에서 보기 →
+          arXiv 보기 →
         </a>
         <a
           href={`https://arxiv.org/pdf/${paper.paper_id}`}
@@ -113,7 +143,7 @@ export default function PaperDetail({
           rel="noopener noreferrer"
           className="external-link"
         >
-          PDF 다운로드 →
+          PDF 보기 →
         </a>
       </div>
     </div>
