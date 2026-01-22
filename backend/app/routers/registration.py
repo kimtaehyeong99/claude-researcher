@@ -48,6 +48,7 @@ async def register_citing_papers(
     - Fetches citing papers from Semantic Scholar
     - Sorts by citation count and takes top N (default 50)
     - Creates database entries and JSON files for each
+    - Returns empty list if all citing papers already exist in database
     """
     papers = await paper_service.register_citing_papers(
         db,
@@ -55,10 +56,5 @@ async def register_citing_papers(
         request.limit
     )
 
-    if not papers:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No citing papers found for {request.paper_id}"
-        )
-
+    # Return papers (even if empty - means all citing papers already exist)
     return papers

@@ -117,10 +117,12 @@ class PaperService:
         existing_paper_ids = set(
             row[0] for row in db.query(Paper.paper_id).all()
         )
+        print(f"[PaperService] Existing papers in DB: {len(existing_paper_ids)}")
 
         # Get more citing papers than needed to account for duplicates
         fetch_limit = limit * 3  # Fetch extra to filter out existing ones
         citing_papers = await self.semantic.get_citing_papers(paper_id, fetch_limit)
+        print(f"[PaperService] Found {len(citing_papers)} citing papers from Semantic Scholar")
 
         registered = []
         for citing in citing_papers:
@@ -134,9 +136,11 @@ class PaperService:
 
             # Skip if already exists in DB
             if citing_id in existing_paper_ids:
+                print(f"[PaperService] Skipping {citing_id} (already exists)")
                 continue
 
             # Get full info from arXiv
+            print(f"[PaperService] Registering citing paper: {citing_id}")
             arxiv_info = await self.arxiv.get_paper_info(citing_id)
 
             # Create DB entry
@@ -167,6 +171,7 @@ class PaperService:
             existing_paper_ids.add(citing_id)  # Add to set to avoid duplicates within batch
 
         db.commit()
+        print(f"[PaperService] Successfully registered {len(registered)} new citing papers")
         return registered
 
     async def simple_search(self, db: Session, paper_id: str) -> Optional[Paper]:
