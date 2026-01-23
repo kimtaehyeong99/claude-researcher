@@ -90,6 +90,7 @@ def get_papers(
         "arxiv_date": Paper.arxiv_date,
         "search_stage": Paper.search_stage,
         "citation_count": Paper.citation_count,
+        "registered_by": Paper.registered_by,
     }
 
     sort_column = sort_columns.get(sort_by, Paper.created_at)

@@ -376,6 +376,7 @@ export default function Dashboard() {
                   <option value="arxiv_date">arXiv 등록일</option>
                   <option value="search_stage">분석 단계</option>
                   <option value="citation_count">인용수</option>
+                  <option value="registered_by">등록자</option>
                 </select>
               </label>
               <label>
