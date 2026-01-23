@@ -328,10 +328,13 @@ class PaperService:
             # OpenAlex 먼저 시도 (빠름)
             citation_count = await self.openalex.get_citation_count(paper_id)
 
-            # OpenAlex 실패 시 Semantic Scholar로 폴백
-            if citation_count is None:
-                print(f"[PaperService] OpenAlex failed, trying Semantic Scholar...")
-                citation_count = await self.semantic.get_citation_count(paper_id)
+            # OpenAlex가 실패하거나 0인 경우 Semantic Scholar로 폴백
+            # (최신 논문은 OpenAlex에 인용 정보가 늦게 반영됨)
+            if citation_count is None or citation_count == 0:
+                print(f"[PaperService] OpenAlex returned {citation_count}, trying Semantic Scholar...")
+                semantic_count = await self.semantic.get_citation_count(paper_id)
+                if semantic_count is not None and semantic_count > 0:
+                    citation_count = semantic_count
 
             if citation_count is not None:
                 paper.citation_count = citation_count
