@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import engine, Base
+from app.models import Paper, AccessLog  # 모델 import하여 테이블 자동 생성
 from app.routers import (
     papers_router,
     registration_router,
@@ -10,6 +11,7 @@ from app.routers import (
 )
 from app.routers.trending import router as trending_router
 from app.routers.keywords import router as keywords_router
+from app.routers.access_logs import router as access_logs_router
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -36,6 +38,7 @@ app.include_router(simple_search_router, prefix="/api/search", tags=["Simple Sea
 app.include_router(deep_search_router, prefix="/api/search", tags=["Deep Search"])
 app.include_router(trending_router, prefix="/api/trending", tags=["Trending"])
 app.include_router(keywords_router, prefix="/api/keywords", tags=["Keywords"])
+app.include_router(access_logs_router, prefix="/api/access-logs", tags=["Access Logs"])
 
 
 @app.get("/")

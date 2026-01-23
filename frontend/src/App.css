@@ -61,8 +61,19 @@ body {
 .dashboard-header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 2rem;
+  padding: 1rem 2rem 2rem;
+}
+
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.header-title {
   text-align: center;
+  flex: 1;
 }
 
 .dashboard-header h1 {
@@ -73,6 +84,21 @@ body {
 .dashboard-header p {
   margin: 0.5rem 0 0;
   opacity: 0.9;
+}
+
+.admin-link {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 0.3rem 0.6rem;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+
+.admin-link:hover {
+  color: white;
 }
 
 .dashboard-content {
@@ -200,16 +226,14 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   margin-bottom: 1rem;
   display: flex;
-  gap: 1rem;
-  align-items: center;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .search-bar {
   display: flex;
   gap: 0.5rem;
-  flex: 1;
-  min-width: 200px;
+  width: 100%;
 }
 
 .search-input {
@@ -1002,6 +1026,15 @@ body {
     min-width: auto;
   }
 
+  .sort-controls-box {
+    flex-wrap: wrap;
+  }
+
+  .sort-controls-box label {
+    flex: 1 1 45%;
+    min-width: 140px;
+  }
+
   .paper-list {
     overflow-x: auto;
   }
@@ -1014,32 +1047,35 @@ body {
 /* Sort Controls Box */
 .sort-controls-box {
   display: flex;
-  gap: 1rem;
+  gap: 0.75rem;
   align-items: center;
   background: #f8f9fa;
-  padding: 0.75rem 1rem;
+  padding: 0.6rem 0.75rem;
   border-radius: 8px;
   border: 1px solid #e9ecef;
+  flex-wrap: wrap;
 }
 
 .sort-controls-box label {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
+  gap: 0.4rem;
+  font-size: 0.85rem;
   color: #555;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .sort-controls-box select {
-  padding: 0.5rem 0.8rem;
+  padding: 0.4rem 0.6rem;
   border: 1px solid #ddd;
   border-radius: 6px;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   background: white;
   cursor: pointer;
   color: #333;
   transition: border-color 0.2s;
+  max-width: 120px;
 }
 
 .sort-controls-box select:focus {
@@ -2287,5 +2323,376 @@ body {
   border-radius: 20px;
   font-size: 0.85rem;
   font-weight: 500;
+}
+
+/* ================================
+   User Login Modal
+   ================================ */
+.login-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.login-modal {
+  background: white;
+  padding: 2rem;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+}
+
+.login-modal h2 {
+  margin: 0 0 0.5rem 0;
+  color: #333;
+  font-size: 1.5rem;
+}
+
+.login-description {
+  margin: 0 0 1.5rem 0;
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.login-error {
+  background: #fee;
+  color: #c00;
+  padding: 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.login-form label {
+  text-align: left;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 0.25rem;
+}
+
+.login-form select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  background: white;
+}
+
+.login-form select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.toggle-add-btn {
+  background: none;
+  border: none;
+  color: #667eea;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0.5rem;
+  text-decoration: underline;
+}
+
+.toggle-add-btn:hover {
+  color: #764ba2;
+}
+
+.add-user-section {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.add-user-section input {
+  flex: 1;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.add-user-section input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.add-user-section button {
+  padding: 0.75rem 1rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.add-user-section button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.login-btn {
+  padding: 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.login-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.login-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Current User Info in RegisterForm */
+.current-user-info {
+  padding: 0.75rem;
+  background: #f0f4ff;
+  border-radius: 8px;
+  color: #333;
+  font-size: 0.9rem;
+}
+
+.current-user-info strong {
+  color: #667eea;
+}
+
+/* User Header (현재 사용자 표시) */
+.user-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 0.8rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.user-header span {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.user-header strong {
+  font-weight: 600;
+}
+
+.logout-btn {
+  padding: 0.4rem 0.8rem;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.2s;
+}
+
+.logout-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.admin-btn {
+  padding: 0.4rem 0.8rem;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.2s;
+}
+
+.admin-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* ================================
+   Admin Page
+   ================================ */
+.admin-page {
+  min-height: 100vh;
+  background: #f5f5f5;
+}
+
+.admin-login-container {
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 4rem 2rem;
+  text-align: center;
+}
+
+.admin-login-container h2 {
+  margin: 0 0 0.5rem 0;
+  color: #333;
+}
+
+.admin-login-container p {
+  color: #666;
+  margin-bottom: 1.5rem;
+}
+
+.admin-error {
+  background: #fee;
+  color: #c00;
+  padding: 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.admin-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.admin-login-form input {
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.admin-login-form input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.admin-login-form button {
+  padding: 0.75rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-login-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.admin-login-container .back-link {
+  display: inline-block;
+  margin-top: 1.5rem;
+  color: #667eea;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 0.95rem;
+}
+
+.admin-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1.5rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.admin-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.admin-actions button {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.2s;
+}
+
+.admin-actions button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.admin-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.admin-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.logs-summary {
+  margin-bottom: 1rem;
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.access-logs-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.access-logs-table th,
+.access-logs-table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.access-logs-table th {
+  background: #f8f9fa;
+  font-weight: 600;
+  color: #333;
+}
+
+.access-logs-table tr:hover {
+  background: #f8f9fa;
+}
+
+.access-logs-table .no-data {
+  text-align: center;
+  color: #999;
+  padding: 2rem;
 }
 

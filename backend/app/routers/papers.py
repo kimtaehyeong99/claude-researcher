@@ -11,6 +11,18 @@ router = APIRouter()
 paper_service = PaperService()
 
 
+@router.get("/registered-by", response_model=List[str])
+def get_registered_by_list(db: Session = Depends(get_db)):
+    """
+    Get list of distinct registered_by values for filtering
+    """
+    result = db.query(Paper.registered_by).distinct().filter(
+        Paper.registered_by.isnot(None),
+        Paper.registered_by != ""
+    ).order_by(Paper.registered_by).all()
+    return [r[0] for r in result]
+
+
 @router.get("", response_model=PaperListResponse)
 def get_papers(
     db: Session = Depends(get_db),
@@ -21,6 +33,7 @@ def get_papers(
     keyword: Optional[str] = Query(None, description="Search in title"),
     matched_category: Optional[str] = Query(None, description="Filter by matched keyword category"),
     no_category_match: Optional[bool] = Query(None, description="Filter papers with no category match"),
+    registered_by: Optional[str] = Query(None, description="Filter by registered_by"),
     sort_by: str = Query("created_at", description="Sort by: created_at, arxiv_date, search_stage, or citation_count"),
     sort_order: str = Query("desc", description="Sort order: asc or desc"),
     skip: int = Query(0, ge=0),
@@ -47,6 +60,10 @@ def get_papers(
 
     if keyword:
         query = query.filter(Paper.title.ilike(f"%{keyword}%"))
+
+    # 등록자 필터링
+    if registered_by:
+        query = query.filter(Paper.registered_by == registered_by)
 
     # 카테고리 필터링
     if matched_category:
@@ -90,7 +107,6 @@ def get_papers(
         "arxiv_date": Paper.arxiv_date,
         "search_stage": Paper.search_stage,
         "citation_count": Paper.citation_count,
-        "registered_by": Paper.registered_by,
     }
 
     sort_column = sort_columns.get(sort_by, Paper.created_at)
@@ -123,6 +139,7 @@ def get_paper(paper_id: str, db: Session = Depends(get_db)):
         arxiv_date=paper.arxiv_date,
         title=paper.title,
         search_stage=paper.search_stage,
+        analysis_status=paper.analysis_status,
         is_favorite=paper.is_favorite,
         is_not_interested=paper.is_not_interested,
         citation_count=paper.citation_count,

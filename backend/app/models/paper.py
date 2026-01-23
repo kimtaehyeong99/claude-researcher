@@ -12,6 +12,7 @@ class Paper(Base):
     arxiv_date = Column(Date, nullable=True)
     title = Column(String, nullable=True)
     search_stage = Column(Integer, default=1)  # 1, 2, or 3
+    analysis_status = Column(String, nullable=True)  # 분석 상태: "simple_analyzing", "deep_analyzing", None(완료)
     is_favorite = Column(Boolean, default=False)
     is_not_interested = Column(Boolean, default=False)
     citation_count = Column(Integer, default=0)

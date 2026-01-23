@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Paper, PaperFilters } from '../api/paperApi';
+import { useUserSession } from '../contexts/UserSessionContext';
 import {
   getPapers,
   registerNewPaper,
@@ -13,6 +14,7 @@ import {
   bulkDeletePapers,
   bulkRestorePapers,
   getCategories,
+  getRegisteredByList,
 } from '../api/paperApi';
 import PaperList from '../components/PaperList';
 import RegisterForm from '../components/RegisterForm';
@@ -30,10 +32,12 @@ const STORAGE_KEYS = {
   ACTIVE_TAB: 'dashboard_activeTab',
   CURRENT_PAGE: 'dashboard_currentPage',
   CATEGORY_FILTER: 'dashboard_categoryFilter',
+  REGISTERED_BY_FILTER: 'dashboard_registeredByFilter',
 };
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { session, logout } = useUserSession();
   const [papers, setPapers] = useState<Paper[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -58,6 +62,11 @@ export default function Dashboard() {
   const [categoryFilter, setCategoryFilter] = useState<string>(() => {
     return localStorage.getItem(STORAGE_KEYS.CATEGORY_FILTER) || '';
   });
+  // 등록자 필터 상태
+  const [registeredByList, setRegisteredByList] = useState<string[]>([]);
+  const [registeredByFilter, setRegisteredByFilter] = useState<string>(() => {
+    return localStorage.getItem(STORAGE_KEYS.REGISTERED_BY_FILTER) || '';
+  });
 
   // 카테고리 목록 조회 (경량 API 사용 - 데이터 전송량 90% 감소)
   const fetchCategories = useCallback(async () => {
@@ -69,9 +78,20 @@ export default function Dashboard() {
     }
   }, []);
 
+  // 등록자 목록 조회
+  const fetchRegisteredByList = useCallback(async () => {
+    try {
+      const list = await getRegisteredByList();
+      setRegisteredByList(list || []);
+    } catch (err) {
+      console.error('등록자 목록 로드 실패:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchCategories();
-  }, [fetchCategories]);
+    fetchRegisteredByList();
+  }, [fetchCategories, fetchRegisteredByList]);
 
   const fetchPapers = useCallback(async (page: number = currentPage) => {
     setLoading(true);
@@ -118,6 +138,11 @@ export default function Dashboard() {
         filters.matched_category = categoryFilter;
       }
 
+      // 등록자 필터 적용
+      if (registeredByFilter) {
+        filters.registered_by = registeredByFilter;
+      }
+
       const response = await getPapers(filters);
       setPapers(response.papers);
       setTotal(response.total);
@@ -127,7 +152,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, keyword, sortBy, sortOrder, currentPage, categoryFilter]);
+  }, [activeTab, keyword, sortBy, sortOrder, currentPage, categoryFilter, registeredByFilter]);
 
   // 단일 useEffect로 통합 (중복 호출 방지)
   useEffect(() => {
@@ -290,6 +315,11 @@ export default function Dashboard() {
     setCurrentPage(1);
   };
 
+  const handleRegisteredByFilterChange = (value: string) => {
+    setRegisteredByFilter(value);
+    setCurrentPage(1);
+  };
+
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
@@ -307,7 +337,8 @@ export default function Dashboard() {
     localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, activeTab);
     localStorage.setItem(STORAGE_KEYS.CURRENT_PAGE, currentPage.toString());
     localStorage.setItem(STORAGE_KEYS.CATEGORY_FILTER, categoryFilter);
-  }, [sortBy, sortOrder, activeTab, currentPage, categoryFilter]);
+    localStorage.setItem(STORAGE_KEYS.REGISTERED_BY_FILTER, registeredByFilter);
+  }, [sortBy, sortOrder, activeTab, currentPage, categoryFilter, registeredByFilter]);
 
   const tabs: { key: TabType; label: string }[] = [
     { key: 'all', label: '전체' },
@@ -321,8 +352,19 @@ export default function Dashboard() {
   return (
     <div className="dashboard">
       <header className="dashboard-header">
-        <h1>Paper Researcher</h1>
-        <p>논문 검색 사이트</p>
+        <div className="header-top">
+          <button onClick={() => navigate('/admin')} className="admin-link">관리자 모드</button>
+          <div className="header-title">
+            <h1>Paper Researcher</h1>
+            <p>논문 검색 사이트</p>
+          </div>
+          {session && (
+            <div className="user-header">
+              <span>현재 사용자: <strong>{session.username}</strong></span>
+              <button onClick={logout} className="logout-btn">로그아웃</button>
+            </div>
+          )}
+        </div>
       </header>
 
       <div className="dashboard-content">
@@ -369,6 +411,17 @@ export default function Dashboard() {
                   )}
                 </select>
               </label>
+              {registeredByList.length > 0 && (
+                <label>
+                  등록자:
+                  <select value={registeredByFilter} onChange={(e) => handleRegisteredByFilterChange(e.target.value)}>
+                    <option value="">전체</option>
+                    {registeredByList.map((name) => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <label>
                 정렬:
                 <select value={sortBy} onChange={(e) => handleSortByChange(e.target.value)}>
@@ -376,7 +429,6 @@ export default function Dashboard() {
                   <option value="arxiv_date">arXiv 등록일</option>
                   <option value="search_stage">분석 단계</option>
                   <option value="citation_count">인용수</option>
-                  <option value="registered_by">등록자</option>
                 </select>
               </label>
               <label>

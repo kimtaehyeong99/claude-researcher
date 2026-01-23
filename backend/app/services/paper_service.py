@@ -79,6 +79,9 @@ class PaperService:
             except Exception as e:
                 print(f"[PaperService] Citation count fetch failed, using 0: {e}")
 
+        # ar5iv에서 첫 번째 Figure 이미지 URL 추출
+        figure_url = await self.ar5iv.get_first_figure_url(paper_id)
+
         # Create DB entry
         paper = Paper(
             paper_id=paper_id,
@@ -87,6 +90,7 @@ class PaperService:
             search_stage=1,
             citation_count=citation_count,
             registered_by=registered_by,
+            figure_url=figure_url,
         )
         db.add(paper)
         db.commit()
@@ -101,6 +105,7 @@ class PaperService:
             "authors": arxiv_info.get("authors", []),
             "abstract_en": arxiv_info.get("abstract"),
             "pdf_url": arxiv_info.get("pdf_url"),
+            "figure_url": figure_url,
         }
         self._save_paper_file(paper_id, paper_data)
 
@@ -157,6 +162,9 @@ class PaperService:
             print(f"[PaperService] Registering citing paper: {citing_id}")
             arxiv_info = await self.arxiv.get_paper_info(citing_id)
 
+            # ar5iv에서 첫 번째 Figure 이미지 URL 추출
+            figure_url = await self.ar5iv.get_first_figure_url(citing_id)
+
             # Create DB entry
             paper = Paper(
                 paper_id=citing_id,
@@ -165,6 +173,7 @@ class PaperService:
                 search_stage=1,
                 citation_count=citing.get("citation_count", 0),
                 registered_by=registered_by,
+                figure_url=figure_url,
             )
             db.add(paper)
 
@@ -175,6 +184,7 @@ class PaperService:
                 "arxiv_date": paper.arxiv_date,
                 "search_stage": 1,
                 "citation_count": citing.get("citation_count", 0),
+                "figure_url": figure_url,
             }
             if arxiv_info:
                 paper_data["authors"] = arxiv_info.get("authors", [])
@@ -216,37 +226,49 @@ class PaperService:
         if not paper_data:
             return None
 
-        # Get abstract if not present (from arXiv API, not PDF)
-        abstract_en = paper_data.get("abstract_en")
-        if not abstract_en:
-            arxiv_info = await self.arxiv.get_paper_info(paper_id)
-            if arxiv_info:
-                abstract_en = arxiv_info.get("abstract")
-                paper_data["abstract_en"] = abstract_en
-
-        # Summarize abstract in Korean
-        if abstract_en:
-            abstract_ko = await self.claude.summarize_abstract(abstract_en)
-            paper_data["abstract_ko"] = abstract_ko
-        else:
-            paper_data["abstract_ko"] = "(초록을 가져올 수 없습니다.)"
-
-        # ar5iv에서 첫 번째 Figure 이미지 URL 추출
-        figure_url = await self.ar5iv.get_first_figure_url(paper_id)
-        if figure_url:
-            paper_data["figure_url"] = figure_url
-            paper.figure_url = figure_url
-
-        # Update stage
-        paper_data["search_stage"] = 2
-        self._save_paper_file(paper_id, paper_data)
-
-        # Update DB
-        paper.search_stage = 2
+        # 분석 시작 상태 설정
+        paper.analysis_status = "simple_analyzing"
         db.commit()
-        db.refresh(paper)
 
-        return paper
+        try:
+            # Get abstract if not present (from arXiv API, not PDF)
+            abstract_en = paper_data.get("abstract_en")
+            if not abstract_en:
+                arxiv_info = await self.arxiv.get_paper_info(paper_id)
+                if arxiv_info:
+                    abstract_en = arxiv_info.get("abstract")
+                    paper_data["abstract_en"] = abstract_en
+
+            # Summarize abstract in Korean
+            if abstract_en:
+                abstract_ko = await self.claude.summarize_abstract(abstract_en)
+                paper_data["abstract_ko"] = abstract_ko
+            else:
+                paper_data["abstract_ko"] = "(초록을 가져올 수 없습니다.)"
+
+            # ar5iv에서 첫 번째 Figure 이미지 URL 추출 (없을 경우에만)
+            if not paper.figure_url:
+                figure_url = await self.ar5iv.get_first_figure_url(paper_id)
+                if figure_url:
+                    paper_data["figure_url"] = figure_url
+                    paper.figure_url = figure_url
+
+            # Update stage
+            paper_data["search_stage"] = 2
+            self._save_paper_file(paper_id, paper_data)
+
+            # Update DB - 분석 완료
+            paper.search_stage = 2
+            paper.analysis_status = None
+            db.commit()
+            db.refresh(paper)
+
+            return paper
+        except Exception as e:
+            # 분석 실패 시 상태 초기화
+            paper.analysis_status = None
+            db.commit()
+            raise e
 
     async def deep_search(self, db: Session, paper_id: str) -> Optional[Paper]:
         """
@@ -269,33 +291,44 @@ class PaperService:
         if not paper_data:
             return None
 
-        # Build PDF URL
-        clean_id = paper_id.replace("/", "_").split("v")[0]
-        pdf_url = f"https://arxiv.org/pdf/{clean_id}.pdf"
-
-        # Get title and abstract from paper data
-        title = paper_data.get("title", "")
-        abstract = paper_data.get("abstract_en", "")
-
-        # Claude에게 제목, 초록, PDF를 전달하여 분석
-        detailed_analysis = await self.claude.analyze_full_paper_from_pdf(
-            paper_id=paper_id,
-            title=title,
-            abstract=abstract,
-            pdf_url=pdf_url
-        )
-        paper_data["detailed_analysis_ko"] = detailed_analysis
-
-        # Update stage
-        paper_data["search_stage"] = 3
-        self._save_paper_file(paper_id, paper_data)
-
-        # Update DB
-        paper.search_stage = 3
+        # 분석 시작 상태 설정
+        paper.analysis_status = "deep_analyzing"
         db.commit()
-        db.refresh(paper)
 
-        return paper
+        try:
+            # Build PDF URL
+            clean_id = paper_id.replace("/", "_").split("v")[0]
+            pdf_url = f"https://arxiv.org/pdf/{clean_id}.pdf"
+
+            # Get title and abstract from paper data
+            title = paper_data.get("title", "")
+            abstract = paper_data.get("abstract_en", "")
+
+            # Claude에게 제목, 초록, PDF를 전달하여 분석
+            detailed_analysis = await self.claude.analyze_full_paper_from_pdf(
+                paper_id=paper_id,
+                title=title,
+                abstract=abstract,
+                pdf_url=pdf_url
+            )
+            paper_data["detailed_analysis_ko"] = detailed_analysis
+
+            # Update stage
+            paper_data["search_stage"] = 3
+            self._save_paper_file(paper_id, paper_data)
+
+            # Update DB - 분석 완료
+            paper.search_stage = 3
+            paper.analysis_status = None
+            db.commit()
+            db.refresh(paper)
+
+            return paper
+        except Exception as e:
+            # 분석 실패 시 상태 초기화
+            paper.analysis_status = None
+            db.commit()
+            raise e
 
     def get_paper_detail(self, paper_id: str) -> Optional[Dict[str, Any]]:
         """

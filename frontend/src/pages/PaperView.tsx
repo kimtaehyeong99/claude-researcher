@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import type { PaperDetail as PaperDetailType } from '../api/paperApi';
 import {
@@ -10,40 +10,65 @@ import {
 } from '../api/paperApi';
 import PaperDetail from '../components/PaperDetail';
 
-// 분석 작업 타입
-type AnalysisType = 'simple' | 'deep' | null;
+// Polling 간격 (3초)
+const POLLING_INTERVAL = 3000;
 
 export default function PaperView() {
   const { paperId } = useParams<{ paperId: string }>();
   const navigate = useNavigate();
   const [paper, setPaper] = useState<PaperDetailType | null>(null);
   const [loading, setLoading] = useState(false);
-  const [analysisType, setAnalysisType] = useState<AnalysisType>(null);
   const [error, setError] = useState<string | null>(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchPaper = async () => {
+  const fetchPaper = useCallback(async (showLoading = true) => {
     if (!paperId) return;
-    setLoading(true);
+    if (showLoading) setLoading(true);
     setError(null);
     try {
       const data = await getPaper(paperId);
       setPaper(data);
+      return data;
     } catch (err) {
       setError('논문 정보를 불러오는데 실패했습니다.');
       console.error(err);
+      return null;
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
-  };
+  }, [paperId]);
+
+  // 분석 중일 때 polling 시작
+  useEffect(() => {
+    // 분석 중이면 polling 시작
+    if (paper?.analysis_status) {
+      pollingRef.current = setInterval(async () => {
+        const updatedPaper = await fetchPaper(false);
+        // 분석 완료되면 polling 중지
+        if (updatedPaper && !updatedPaper.analysis_status) {
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
+        }
+      }, POLLING_INTERVAL);
+    }
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [paper?.analysis_status, fetchPaper]);
 
   useEffect(() => {
     fetchPaper();
-  }, [paperId]);
+  }, [fetchPaper]);
 
   const handleSimpleSearch = async () => {
     if (!paperId) return;
     setLoading(true);
-    setAnalysisType('simple');
     setError(null);
     try {
       const data = await simpleSearch(paperId);
@@ -52,14 +77,12 @@ export default function PaperView() {
       setError(err.response?.data?.detail || '간단 서칭에 실패했습니다.');
     } finally {
       setLoading(false);
-      setAnalysisType(null);
     }
   };
 
   const handleDeepSearch = async () => {
     if (!paperId) return;
     setLoading(true);
-    setAnalysisType('deep');
     setError(null);
     try {
       const data = await deepSearch(paperId);
@@ -68,7 +91,6 @@ export default function PaperView() {
       setError(err.response?.data?.detail || '딥 서칭에 실패했습니다.');
     } finally {
       setLoading(false);
-      setAnalysisType(null);
     }
   };
 
@@ -127,7 +149,6 @@ export default function PaperView() {
         onUpdateCitation={handleUpdateCitation}
         onBack={handleBack}
         loading={loading}
-        analysisType={analysisType}
       />
     </div>
   );

@@ -17,6 +17,7 @@ class PaperCreate(PaperBase):
 class PaperResponse(PaperBase):
     id: int
     search_stage: int
+    analysis_status: Optional[str] = None  # 분석 상태: "simple_analyzing", "deep_analyzing", None(완료)
     is_favorite: bool
     is_not_interested: bool
     citation_count: int

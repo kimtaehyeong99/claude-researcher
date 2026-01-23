@@ -16,6 +16,7 @@ export interface Paper {
   arxiv_date: string | null;
   title: string | null;
   search_stage: number;
+  analysis_status: 'simple_analyzing' | 'deep_analyzing' | null;  // 분석 상태
   is_favorite: boolean;
   is_not_interested: boolean;
   citation_count: number;
@@ -44,6 +45,7 @@ export interface PaperFilters {
   keyword?: string;
   matched_category?: string;  // 카테고리 필터
   no_category_match?: boolean;  // 카테고리 미해당 필터
+  registered_by?: string;  // 등록자 필터
   sort_by?: string;
   sort_order?: string;
   skip?: number;
@@ -85,6 +87,7 @@ export const getPapers = async (filters: PaperFilters = {}): Promise<PaperListRe
   if (filters.keyword) params.append('keyword', filters.keyword);
   if (filters.matched_category) params.append('matched_category', filters.matched_category);
   if (filters.no_category_match !== undefined) params.append('no_category_match', filters.no_category_match.toString());
+  if (filters.registered_by) params.append('registered_by', filters.registered_by);
   if (filters.sort_by) params.append('sort_by', filters.sort_by);
   if (filters.sort_order) params.append('sort_order', filters.sort_order);
   if (filters.skip !== undefined) params.append('skip', filters.skip.toString());
@@ -211,6 +214,12 @@ export interface KeywordListResponse {
 // Get categories only (lightweight API for Dashboard filter)
 export const getCategories = async (): Promise<string[]> => {
   const response = await api.get<string[]>('/keywords/categories');
+  return response.data;
+};
+
+// Get registered_by list for filtering
+export const getRegisteredByList = async (): Promise<string[]> => {
+  const response = await api.get<string[]>('/papers/registered-by');
   return response.data;
 };
 
