@@ -9,6 +9,7 @@ from app.config import settings
 from app.models.paper import Paper
 from app.services.arxiv_service import ArxivService
 from app.services.semantic_service import SemanticScholarService
+from app.services.openalex_service import OpenAlexService
 from app.services.claude_service import ClaudeService
 from app.services.ar5iv_service import Ar5ivService
 from app.services.keyword_service import KeywordService
@@ -20,6 +21,7 @@ class PaperService:
     def __init__(self):
         self.arxiv = ArxivService()
         self.semantic = SemanticScholarService()
+        self.openalex = OpenAlexService()
         self.claude = ClaudeService()
         self.ar5iv = Ar5ivService()
         self.keyword_service = KeywordService()
@@ -309,7 +311,7 @@ class PaperService:
 
     async def update_citation_count(self, db: Session, paper_id: str) -> Optional[Paper]:
         """
-        Update citation count for a paper from Semantic Scholar
+        Update citation count for a paper (OpenAlex 우선, 실패 시 Semantic Scholar)
 
         Args:
             db: Database session
@@ -323,12 +325,23 @@ class PaperService:
             return None
 
         try:
-            citation_count = await self.semantic.get_citation_count(paper_id)
-            paper.citation_count = citation_count
-            db.commit()
-            db.refresh(paper)
-            print(f"[PaperService] Updated citation count for {paper_id}: {citation_count}")
-            return paper
+            # OpenAlex 먼저 시도 (빠름)
+            citation_count = await self.openalex.get_citation_count(paper_id)
+
+            # OpenAlex 실패 시 Semantic Scholar로 폴백
+            if citation_count is None:
+                print(f"[PaperService] OpenAlex failed, trying Semantic Scholar...")
+                citation_count = await self.semantic.get_citation_count(paper_id)
+
+            if citation_count is not None:
+                paper.citation_count = citation_count
+                db.commit()
+                db.refresh(paper)
+                print(f"[PaperService] Updated citation count for {paper_id}: {citation_count}")
+                return paper
+            else:
+                print(f"[PaperService] Could not get citation count from any source")
+                return None
         except Exception as e:
             print(f"[PaperService] Failed to update citation count: {e}")
             return None
