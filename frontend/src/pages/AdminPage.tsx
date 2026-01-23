@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { verifyAdmin, getAccessLogs } from '../api/accessApi';
+import { verifyAdmin, getAccessLogs, deleteAccessLog, deleteAllAccessLogs } from '../api/accessApi';
 import type { AccessLog } from '../api/accessApi';
 
 const ADMIN_SESSION_KEY = 'admin_authenticated';
@@ -67,15 +67,41 @@ export default function AdminPage() {
   };
 
   const formatDate = (dateStr: string) => {
+    // 서버에서 KST(+09:00)로 저장됨 - 명시적으로 한국 시간대로 표시
     const date = new Date(dateStr);
-    return date.toLocaleString('ko-KR', {
+    // Intl.DateTimeFormat으로 확실하게 KST로 표시
+    return new Intl.DateTimeFormat('ko-KR', {
+      timeZone: 'Asia/Seoul',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
-    });
+      hour12: false,
+    }).format(date);
+  };
+
+  const handleDeleteLog = async (logId: number) => {
+    if (!confirm('이 접속 기록을 삭제하시겠습니까?')) return;
+
+    try {
+      await deleteAccessLog(adminPassword, logId);
+      setLogs(logs.filter(log => log.id !== logId));
+    } catch {
+      setError('삭제에 실패했습니다.');
+    }
+  };
+
+  const handleDeleteAllLogs = async () => {
+    if (!confirm('모든 접속 기록을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
+
+    try {
+      await deleteAllAccessLogs(adminPassword);
+      setLogs([]);
+    } catch {
+      setError('삭제에 실패했습니다.');
+    }
   };
 
   if (!isAuthenticated) {
@@ -129,6 +155,11 @@ export default function AdminPage() {
       <div className="admin-content">
         <div className="logs-summary">
           <span>총 {logs.length}개의 접속 기록</span>
+          {logs.length > 0 && (
+            <button onClick={handleDeleteAllLogs} className="delete-all-btn">
+              전체 삭제
+            </button>
+          )}
         </div>
 
         {logsLoading ? (
@@ -139,8 +170,9 @@ export default function AdminPage() {
               <tr>
                 <th>ID</th>
                 <th>사용자</th>
-                <th>접속 시간</th>
+                <th>접속 시간 (KST)</th>
                 <th>IP 주소</th>
+                <th>삭제</th>
               </tr>
             </thead>
             <tbody>
@@ -150,11 +182,20 @@ export default function AdminPage() {
                   <td>{log.username}</td>
                   <td>{formatDate(log.login_time)}</td>
                   <td>{log.ip_address || '-'}</td>
+                  <td>
+                    <button
+                      onClick={() => handleDeleteLog(log.id)}
+                      className="delete-log-btn"
+                      title="삭제"
+                    >
+                      X
+                    </button>
+                  </td>
                 </tr>
               ))}
               {logs.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="no-data">접속 기록이 없습니다.</td>
+                  <td colSpan={5} className="no-data">접속 기록이 없습니다.</td>
                 </tr>
               )}
             </tbody>

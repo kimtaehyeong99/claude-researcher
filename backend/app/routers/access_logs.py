@@ -1,5 +1,5 @@
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, Request, HTTPException, Header
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -8,6 +8,9 @@ from app.database import get_db
 from app.models.access_log import AccessLog
 from app.models.user import User
 from app.config import settings
+
+# 한국 시간대 (UTC+9)
+KST = timezone(timedelta(hours=9))
 
 router = APIRouter()
 
@@ -66,9 +69,10 @@ def log_login(
         db.add(new_user)
         db.commit()
 
-    # 접속 로그 기록
+    # 접속 로그 기록 (한국 시간으로 저장)
     log = AccessLog(
         username=login_data.username,
+        login_time=datetime.now(KST),
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent")
     )
@@ -98,6 +102,42 @@ def get_access_logs(
 
     logs = query.order_by(AccessLog.login_time.desc()).limit(limit).all()
     return logs
+
+
+@router.delete("/logs/{log_id}")
+def delete_access_log(
+    log_id: int,
+    db: Session = Depends(get_db),
+    _: bool = Depends(verify_admin_password)
+):
+    """단일 접속 기록 삭제 (관리자 전용)"""
+    log = db.query(AccessLog).filter(AccessLog.id == log_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="접속 기록을 찾을 수 없습니다")
+
+    db.delete(log)
+    db.commit()
+    return {"status": "ok", "message": f"접속 기록 {log_id}가 삭제되었습니다"}
+
+
+@router.delete("/logs")
+def delete_all_access_logs(
+    db: Session = Depends(get_db),
+    username: Optional[str] = None,
+    _: bool = Depends(verify_admin_password)
+):
+    """모든 접속 기록 삭제 또는 특정 사용자의 기록만 삭제 (관리자 전용)"""
+    query = db.query(AccessLog)
+
+    if username:
+        query = query.filter(AccessLog.username == username)
+
+    deleted_count = query.delete()
+    db.commit()
+
+    if username:
+        return {"status": "ok", "message": f"{username}의 접속 기록 {deleted_count}개가 삭제되었습니다"}
+    return {"status": "ok", "message": f"모든 접속 기록 {deleted_count}개가 삭제되었습니다"}
 
 
 class UserResponse(BaseModel):

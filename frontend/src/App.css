@@ -687,6 +687,33 @@ body {
   border-radius: 4px;
 }
 
+/* Paper Figure Inline (in markdown content) */
+.paper-figure-inline {
+  margin: 1.5rem 0;
+  text-align: center;
+  background: #fafafa;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #eee;
+}
+
+.paper-figure-inline img {
+  max-width: 100%;
+  max-height: 600px;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.paper-figure-inline figcaption {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  color: #555;
+  font-style: italic;
+  line-height: 1.4;
+  padding: 0 1rem;
+}
+
 /* Stage Buttons */
 .stage-buttons {
   display: flex;
@@ -2694,5 +2721,44 @@ body {
   text-align: center;
   color: #999;
   padding: 2rem;
+}
+
+.logs-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.delete-all-btn {
+  padding: 0.5rem 1rem;
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.2s;
+}
+
+.delete-all-btn:hover {
+  background: #c82333;
+}
+
+.delete-log-btn {
+  padding: 0.25rem 0.5rem;
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: bold;
+  transition: all 0.2s;
+}
+
+.delete-log-btn:hover {
+  background: #dc3545;
+  color: white;
+  border-color: #dc3545;
 }
 

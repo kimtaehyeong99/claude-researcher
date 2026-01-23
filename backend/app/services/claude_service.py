@@ -2,7 +2,7 @@ import asyncio
 import httpx
 import tempfile
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Dict
 from bs4 import BeautifulSoup
 import fitz  # PyMuPDF
 
@@ -99,7 +99,8 @@ class ClaudeService:
         paper_id: str,
         title: str,
         abstract: str,
-        pdf_url: str
+        pdf_url: str,
+        figures: List[Dict[str, str]] = None
     ) -> str:
         """
         3단계: PDF URL에서 다운로드하여 텍스트 추출 후 Claude CLI로 상세 분석
@@ -110,6 +111,7 @@ class ClaudeService:
             title: 논문 제목
             abstract: 논문 초록
             pdf_url: PDF URL (예: https://arxiv.org/pdf/2306.02437.pdf)
+            figures: ar5iv에서 추출한 figure 정보 리스트
 
         Returns:
             한국어로 상세 정리된 분석
@@ -185,6 +187,31 @@ class ClaudeService:
 
 전문 용어는 영어를 괄호 안에 병기해주세요."""
 
+        # Figure 정보 구성
+        figures_section = ""
+        if figures and len(figures) > 0:
+            figures_info = []
+            for fig in figures:
+                fig_num = fig.get("figure_num", "?")
+                fig_url = fig.get("url", "")
+                fig_caption = fig.get("caption", "")
+                figures_info.append(f"- Figure {fig_num}: {fig_caption}\n  URL: {fig_url}")
+
+            figures_section = f"""
+---
+
+**논문 Figure 목록** (총 {len(figures)}개):
+{chr(10).join(figures_info)}
+
+**이미지 삽입 규칙 (매우 중요)**:
+1. 분석 중 관련 내용을 설명할 때 해당 Figure를 마크다운 이미지로 삽입해주세요
+2. 형식: ![Figure N: 간단한 설명](URL)
+3. "연구 배경" 섹션: 문제를 시각화하는 개요/아키텍처 다이어그램 삽입
+4. "제안 방법론" 섹션: 알고리즘/네트워크 구조 다이어그램 삽입
+5. "실험 및 결과" 섹션: 성능 그래프, 비교 테이블, 시각화 결과 삽입
+6. 각 이미지 삽입 후 1-2문장으로 해당 이미지가 보여주는 내용 설명
+7. 모든 Figure를 사용할 필요는 없지만, 핵심 Figure는 반드시 포함해주세요"""
+
         prompt = f"""다음 논문을 상세히 분석하여 한국어로 정리해주세요.
 
 **논문 제목**: {title}
@@ -203,6 +230,7 @@ class ClaudeService:
 ---
 
 {math_instructions}
+{figures_section}
 
 ---
 

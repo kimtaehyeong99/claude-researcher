@@ -304,12 +304,16 @@ class PaperService:
             title = paper_data.get("title", "")
             abstract = paper_data.get("abstract_en", "")
 
-            # Claude에게 제목, 초록, PDF를 전달하여 분석
+            # ar5iv에서 모든 figure 추출
+            figures = await self.ar5iv.get_all_figures(paper_id)
+
+            # Claude에게 제목, 초록, PDF, Figure 정보를 전달하여 분석
             detailed_analysis = await self.claude.analyze_full_paper_from_pdf(
                 paper_id=paper_id,
                 title=title,
                 abstract=abstract,
-                pdf_url=pdf_url
+                pdf_url=pdf_url,
+                figures=figures
             )
             paper_data["detailed_analysis_ko"] = detailed_analysis
 

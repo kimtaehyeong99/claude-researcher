@@ -74,5 +74,29 @@ export const createUser = async (username: string): Promise<void> => {
   await api.post('/access-logs/users', { username });
 };
 
+/**
+ * 단일 접속 기록 삭제 (관리자 전용)
+ */
+export const deleteAccessLog = async (adminPassword: string, logId: number): Promise<void> => {
+  await api.delete(`/access-logs/logs/${logId}`, {
+    headers: { 'X-Admin-Password': adminPassword }
+  });
+};
+
+/**
+ * 모든 접속 기록 삭제 (관리자 전용)
+ */
+export const deleteAllAccessLogs = async (adminPassword: string, username?: string): Promise<{ message: string }> => {
+  const params: Record<string, string> = {};
+  if (username) {
+    params.username = username;
+  }
+  const response = await api.delete<{ status: string; message: string }>('/access-logs/logs', {
+    params,
+    headers: { 'X-Admin-Password': adminPassword }
+  });
+  return response.data;
+};
+
 // 하위 호환성을 위한 별칭
 export const getAccessUsers = getUsers;

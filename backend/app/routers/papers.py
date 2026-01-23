@@ -1,14 +1,23 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from sqlalchemy.orm import Session
 from typing import Optional, List
 
 from app.database import get_db
 from app.models.paper import Paper
+from app.models.user_favorite import UserFavorite
 from app.schemas.paper import PaperResponse, PaperDetailResponse, PaperListResponse
 from app.services.paper_service import PaperService
 
 router = APIRouter()
 paper_service = PaperService()
+
+
+def get_current_username(x_username: Optional[str] = Header(None)) -> Optional[str]:
+    """HTTP 헤더에서 사용자명 추출 (URL 디코딩 포함)"""
+    if x_username:
+        from urllib.parse import unquote
+        return unquote(x_username)
+    return None
 
 
 @router.get("/registered-by", response_model=List[str])
@@ -38,6 +47,7 @@ def get_papers(
     sort_order: str = Query("desc", description="Sort order: asc or desc"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
+    username: Optional[str] = Depends(get_current_username),
 ):
     """
     Get list of papers with optional filters and sorting
@@ -50,7 +60,22 @@ def get_papers(
     if stage is not None:
         query = query.filter(Paper.search_stage == stage)
 
-    if favorite is not None:
+    # 즐겨찾기 필터링 (사용자별)
+    if favorite is not None and username:
+        if favorite:
+            # 해당 사용자의 즐겨찾기 논문만 조회
+            favorite_paper_ids = db.query(UserFavorite.paper_id).filter(
+                UserFavorite.username == username
+            ).subquery()
+            query = query.filter(Paper.paper_id.in_(favorite_paper_ids))
+        else:
+            # 즐겨찾기가 아닌 논문
+            favorite_paper_ids = db.query(UserFavorite.paper_id).filter(
+                UserFavorite.username == username
+            ).subquery()
+            query = query.filter(~Paper.paper_id.in_(favorite_paper_ids))
+    elif favorite is not None:
+        # 하위 호환: username 없으면 기존 is_favorite 사용
         query = query.filter(Paper.is_favorite == favorite)
 
     if not_interested is not None:
@@ -116,19 +141,47 @@ def get_papers(
     else:
         papers = query.order_by(sort_column.desc()).offset(skip).limit(limit).all()
 
-    # Pydantic validator가 자동으로 matched_keywords JSON 파싱 처리
-    paper_responses = [PaperResponse.model_validate(paper) for paper in papers]
+    # 사용자별 즐겨찾기 상태 반영
+    if username:
+        # 해당 사용자의 즐겨찾기 목록 조회
+        user_favorites = set(
+            f.paper_id for f in db.query(UserFavorite.paper_id).filter(
+                UserFavorite.username == username
+            ).all()
+        )
+
+        paper_responses = []
+        for paper in papers:
+            response = PaperResponse.model_validate(paper)
+            response.is_favorite = paper.paper_id in user_favorites
+            paper_responses.append(response)
+    else:
+        paper_responses = [PaperResponse.model_validate(paper) for paper in papers]
+
     return PaperListResponse(papers=paper_responses, total=total)
 
 
 @router.get("/{paper_id}", response_model=PaperDetailResponse)
-def get_paper(paper_id: str, db: Session = Depends(get_db)):
+def get_paper(
+    paper_id: str,
+    db: Session = Depends(get_db),
+    username: Optional[str] = Depends(get_current_username),
+):
     """
     Get paper details including translated content
     """
     paper = db.query(Paper).filter(Paper.paper_id == paper_id).first()
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
+
+    # 사용자별 즐겨찾기 상태 확인
+    is_favorite = paper.is_favorite  # 기본값
+    if username:
+        existing = db.query(UserFavorite).filter(
+            UserFavorite.username == username,
+            UserFavorite.paper_id == paper_id
+        ).first()
+        is_favorite = existing is not None
 
     # Get additional data from JSON file
     paper_data = paper_service.get_paper_detail(paper_id)
@@ -140,7 +193,7 @@ def get_paper(paper_id: str, db: Session = Depends(get_db)):
         title=paper.title,
         search_stage=paper.search_stage,
         analysis_status=paper.analysis_status,
-        is_favorite=paper.is_favorite,
+        is_favorite=is_favorite,
         is_not_interested=paper.is_not_interested,
         citation_count=paper.citation_count,
         registered_by=paper.registered_by,
@@ -160,19 +213,47 @@ def get_paper(paper_id: str, db: Session = Depends(get_db)):
 
 
 @router.patch("/{paper_id}/favorite", response_model=PaperResponse)
-def toggle_favorite(paper_id: str, db: Session = Depends(get_db)):
+def toggle_favorite(
+    paper_id: str,
+    db: Session = Depends(get_db),
+    username: Optional[str] = Depends(get_current_username),
+):
     """
-    Toggle paper favorite status
+    Toggle paper favorite status for a specific user
     """
     paper = db.query(Paper).filter(Paper.paper_id == paper_id).first()
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
 
-    paper.is_favorite = not paper.is_favorite
-    db.commit()
-    db.refresh(paper)
+    if username:
+        # 사용자별 즐겨찾기 처리
+        existing = db.query(UserFavorite).filter(
+            UserFavorite.username == username,
+            UserFavorite.paper_id == paper_id
+        ).first()
 
-    return paper
+        if existing:
+            # 즐겨찾기 해제
+            db.delete(existing)
+            is_favorite = False
+        else:
+            # 즐겨찾기 추가
+            new_favorite = UserFavorite(username=username, paper_id=paper_id)
+            db.add(new_favorite)
+            is_favorite = True
+
+        db.commit()
+
+        # 응답에 is_favorite 동적 설정
+        response = PaperResponse.model_validate(paper)
+        response.is_favorite = is_favorite
+        return response
+    else:
+        # 기존 로직 (하위 호환성)
+        paper.is_favorite = not paper.is_favorite
+        db.commit()
+        db.refresh(paper)
+        return paper
 
 
 @router.patch("/{paper_id}/not-interested", response_model=PaperResponse)

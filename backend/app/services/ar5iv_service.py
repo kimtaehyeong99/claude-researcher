@@ -3,7 +3,8 @@ ar5iv Service - arXiv 논문의 HTML 버전에서 Figure 이미지 추출
 """
 import httpx
 from bs4 import BeautifulSoup
-from typing import Optional
+from typing import Optional, List, Dict
+import re
 
 
 class Ar5ivService:
@@ -76,6 +77,95 @@ class Ar5ivService:
         except Exception as e:
             print(f"[Ar5iv] Error fetching {paper_id}: {e}")
             return None
+
+    async def get_all_figures(self, paper_id: str) -> List[Dict[str, str]]:
+        """
+        ar5iv HTML에서 모든 figure 이미지 URL과 캡션 추출
+
+        Args:
+            paper_id: arXiv 논문 ID (예: "2306.02437")
+
+        Returns:
+            [
+                {"figure_num": "1", "url": "https://...", "caption": "Figure 1: ..."},
+                ...
+            ]
+        """
+        figures_list = []
+
+        try:
+            url = f"{self.BASE_URL}/html/{paper_id}"
+            print(f"[Ar5iv] Fetching all figures from: {url}")
+
+            async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+                response = await client.get(url)
+
+                if response.status_code != 200:
+                    print(f"[Ar5iv] Page not found: {paper_id} (status: {response.status_code})")
+                    return []
+
+                soup = BeautifulSoup(response.text, 'html.parser')
+
+                # 모든 figure 태그 순회
+                figures = soup.find_all('figure')
+                figure_count = 0
+
+                for figure in figures:
+                    img = figure.find('img')
+                    if not img or not img.get('src'):
+                        continue
+
+                    src = img['src']
+
+                    # 상대 경로를 절대 경로로 변환
+                    if src.startswith('/'):
+                        full_url = f"{self.BASE_URL}{src}"
+                    elif not src.startswith('http'):
+                        full_url = f"{self.BASE_URL}/html/{paper_id}/{src}"
+                    else:
+                        full_url = src
+
+                    # Figure 번호 추출
+                    figure_num = ""
+                    figcaption = figure.find('figcaption')
+                    caption_text = ""
+
+                    if figcaption:
+                        # Figure 번호 태그에서 추출 (예: "Figure 1")
+                        tag_span = figcaption.find('span', class_='ltx_tag')
+                        if tag_span:
+                            tag_text = tag_span.get_text(strip=True)
+                            # "Figure 1" 또는 "Fig. 1" 패턴에서 번호 추출
+                            match = re.search(r'(?:Figure|Fig\.?)\s*(\d+)', tag_text, re.IGNORECASE)
+                            if match:
+                                figure_num = match.group(1)
+
+                        # 전체 캡션 텍스트 추출
+                        caption_text = figcaption.get_text(separator=' ', strip=True)
+                        # 캡션 길이 제한
+                        if len(caption_text) > 500:
+                            caption_text = caption_text[:500] + "..."
+
+                    # Figure 번호가 없으면 순서대로 번호 부여
+                    if not figure_num:
+                        figure_count += 1
+                        figure_num = str(figure_count)
+
+                    figures_list.append({
+                        "figure_num": figure_num,
+                        "url": full_url,
+                        "caption": caption_text
+                    })
+
+                print(f"[Ar5iv] Found {len(figures_list)} figures for {paper_id}")
+                return figures_list
+
+        except httpx.TimeoutException:
+            print(f"[Ar5iv] Timeout while fetching figures: {paper_id}")
+            return []
+        except Exception as e:
+            print(f"[Ar5iv] Error fetching figures for {paper_id}: {e}")
+            return []
 
 
 # 싱글톤 인스턴스

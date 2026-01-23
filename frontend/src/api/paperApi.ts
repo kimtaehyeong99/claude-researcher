@@ -10,6 +10,24 @@ const api = axios.create({
   },
 });
 
+// X-Username 헤더 자동 추가 인터셉터
+api.interceptors.request.use((config) => {
+  const SESSION_STORAGE_KEY = 'user_session';
+  try {
+    const saved = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (saved) {
+      const session = JSON.parse(saved);
+      if (session.username) {
+        // 한글 등 non-ASCII 문자를 위해 URL 인코딩
+        config.headers['X-Username'] = encodeURIComponent(session.username);
+      }
+    }
+  } catch (e) {
+    console.error('세션 읽기 실패:', e);
+  }
+  return config;
+});
+
 export interface Paper {
   id: number;
   paper_id: string;

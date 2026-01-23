@@ -15,6 +15,24 @@ export default function MarkdownRenderer({ content, className }: MarkdownRendere
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex]}
+        components={{
+          img: ({ node, ...props }) => (
+            <figure className="paper-figure-inline">
+              <img
+                {...props}
+                loading="lazy"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  const figure = target.closest('.paper-figure-inline');
+                  if (figure) {
+                    (figure as HTMLElement).style.display = 'none';
+                  }
+                }}
+              />
+              {props.alt && <figcaption>{props.alt}</figcaption>}
+            </figure>
+          )
+        }}
       >
         {content}
       </ReactMarkdown>
