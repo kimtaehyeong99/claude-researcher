@@ -6,6 +6,8 @@ import FavoriteButton from './FavoriteButton';
 // Markdown 관련 라이브러리 (~500KB) 동적 로딩
 const MarkdownRenderer = lazy(() => import('./MarkdownRenderer'));
 
+type AnalysisType = 'simple' | 'deep' | null;
+
 interface PaperDetailProps {
   paper: PaperDetailType;
   onSimpleSearch: () => void;
@@ -14,6 +16,38 @@ interface PaperDetailProps {
   onUpdateCitation: () => void;
   onBack: () => void;
   loading?: boolean;
+  analysisType?: AnalysisType;
+}
+
+// 분석 진행 상태 메시지 컴포넌트
+function AnalysisProgress({ type }: { type: AnalysisType }) {
+  if (!type) return null;
+
+  const messages = {
+    simple: {
+      title: '초록 요약 중...',
+      description: 'arXiv에서 초록을 가져와 한국어로 요약하고 있습니다.',
+      estimate: '약 10~20초 소요',
+    },
+    deep: {
+      title: '상세 분석 중...',
+      description: 'Claude가 PDF 전체를 읽고 분석하고 있습니다.',
+      estimate: '약 1~3분 소요 (논문 길이에 따라 다름)',
+    },
+  };
+
+  const msg = messages[type];
+
+  return (
+    <div className="analysis-progress">
+      <div className="progress-spinner"></div>
+      <div className="progress-content">
+        <h3>{msg.title}</h3>
+        <p>{msg.description}</p>
+        <span className="progress-estimate">{msg.estimate}</span>
+      </div>
+    </div>
+  );
 }
 
 export default function PaperDetail({
@@ -24,6 +58,7 @@ export default function PaperDetail({
   onUpdateCitation,
   onBack,
   loading,
+  analysisType,
 }: PaperDetailProps) {
   const [expandedSections, setExpandedSections] = useState<{
     abstract: boolean;
@@ -100,7 +135,7 @@ export default function PaperDetail({
         loading={loading}
       />
 
-      {loading && <div className="loading-indicator">처리 중...</div>}
+      {analysisType && <AnalysisProgress type={analysisType} />}
 
       {paper.search_stage >= 2 && paper.abstract_ko && (
         <section className="content-section abstract-section">

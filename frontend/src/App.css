@@ -2231,3 +2231,61 @@ body {
   border-color: #667eea;
 }
 
+/* Analysis Progress Indicator */
+.analysis-progress {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  margin: 1rem 0;
+  background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+  border: 1px solid #667eea30;
+  border-radius: 12px;
+  animation: pulse-border 2s ease-in-out infinite;
+}
+
+@keyframes pulse-border {
+  0%, 100% {
+    border-color: #667eea30;
+  }
+  50% {
+    border-color: #667eea60;
+  }
+}
+
+.analysis-progress .progress-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #e0e0e0;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  flex-shrink: 0;
+}
+
+.analysis-progress .progress-content {
+  flex: 1;
+}
+
+.analysis-progress .progress-content h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.analysis-progress .progress-content p {
+  margin: 0 0 0.5rem 0;
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.analysis-progress .progress-estimate {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: #667eea20;
+  color: #667eea;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+

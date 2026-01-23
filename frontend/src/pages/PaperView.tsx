@@ -10,11 +10,15 @@ import {
 } from '../api/paperApi';
 import PaperDetail from '../components/PaperDetail';
 
+// 분석 작업 타입
+type AnalysisType = 'simple' | 'deep' | null;
+
 export default function PaperView() {
   const { paperId } = useParams<{ paperId: string }>();
   const navigate = useNavigate();
   const [paper, setPaper] = useState<PaperDetailType | null>(null);
   const [loading, setLoading] = useState(false);
+  const [analysisType, setAnalysisType] = useState<AnalysisType>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchPaper = async () => {
@@ -39,6 +43,7 @@ export default function PaperView() {
   const handleSimpleSearch = async () => {
     if (!paperId) return;
     setLoading(true);
+    setAnalysisType('simple');
     setError(null);
     try {
       const data = await simpleSearch(paperId);
@@ -47,12 +52,14 @@ export default function PaperView() {
       setError(err.response?.data?.detail || '간단 서칭에 실패했습니다.');
     } finally {
       setLoading(false);
+      setAnalysisType(null);
     }
   };
 
   const handleDeepSearch = async () => {
     if (!paperId) return;
     setLoading(true);
+    setAnalysisType('deep');
     setError(null);
     try {
       const data = await deepSearch(paperId);
@@ -61,6 +68,7 @@ export default function PaperView() {
       setError(err.response?.data?.detail || '딥 서칭에 실패했습니다.');
     } finally {
       setLoading(false);
+      setAnalysisType(null);
     }
   };
 
@@ -119,6 +127,7 @@ export default function PaperView() {
         onUpdateCitation={handleUpdateCitation}
         onBack={handleBack}
         loading={loading}
+        analysisType={analysisType}
       />
     </div>
   );
