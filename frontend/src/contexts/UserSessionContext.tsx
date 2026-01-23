@@ -17,10 +17,10 @@ interface UserSessionContextType {
 
 const UserSessionContext = createContext<UserSessionContextType | undefined>(undefined);
 
-// localStorage에서 세션 로드
+// sessionStorage에서 세션 로드 (탭/창 닫으면 세션 삭제됨)
 const loadSession = (): UserSession | null => {
   try {
-    const saved = localStorage.getItem(SESSION_STORAGE_KEY);
+    const saved = sessionStorage.getItem(SESSION_STORAGE_KEY);
     if (saved) {
       return JSON.parse(saved);
     }
@@ -30,12 +30,12 @@ const loadSession = (): UserSession | null => {
   return null;
 };
 
-// localStorage에 세션 저장
+// sessionStorage에 세션 저장
 const saveSession = (session: UserSession | null) => {
   if (session) {
-    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+    sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
   } else {
-    localStorage.removeItem(SESSION_STORAGE_KEY);
+    sessionStorage.removeItem(SESSION_STORAGE_KEY);
   }
 };
 
