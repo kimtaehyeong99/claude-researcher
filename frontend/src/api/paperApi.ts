@@ -97,21 +97,23 @@ export type PeriodType = 'day' | 'week' | 'month';
 
 // Get papers list with filters
 export const getPapers = async (filters: PaperFilters = {}): Promise<PaperListResponse> => {
-  const params = new URLSearchParams();
-  if (filters.stage !== undefined) params.append('stage', filters.stage.toString());
-  if (filters.favorite !== undefined) params.append('favorite', filters.favorite.toString());
-  if (filters.not_interested !== undefined) params.append('not_interested', filters.not_interested.toString());
-  if (filters.hide_not_interested !== undefined) params.append('hide_not_interested', filters.hide_not_interested.toString());
-  if (filters.keyword) params.append('keyword', filters.keyword);
-  if (filters.matched_category) params.append('matched_category', filters.matched_category);
-  if (filters.no_category_match !== undefined) params.append('no_category_match', filters.no_category_match.toString());
-  if (filters.registered_by) params.append('registered_by', filters.registered_by);
-  if (filters.sort_by) params.append('sort_by', filters.sort_by);
-  if (filters.sort_order) params.append('sort_order', filters.sort_order);
-  if (filters.skip !== undefined) params.append('skip', filters.skip.toString());
-  if (filters.limit !== undefined) params.append('limit', filters.limit.toString());
+  // axios의 params 옵션 사용 (자동 URL 인코딩)
+  const params: Record<string, string | number | boolean> = {};
 
-  const response = await api.get<PaperListResponse>(`/papers?${params.toString()}`);
+  if (filters.stage !== undefined) params.stage = filters.stage;
+  if (filters.favorite !== undefined) params.favorite = filters.favorite;
+  if (filters.not_interested !== undefined) params.not_interested = filters.not_interested;
+  if (filters.hide_not_interested !== undefined) params.hide_not_interested = filters.hide_not_interested;
+  if (filters.keyword) params.keyword = filters.keyword;
+  if (filters.matched_category) params.matched_category = filters.matched_category;
+  if (filters.no_category_match !== undefined) params.no_category_match = filters.no_category_match;
+  if (filters.registered_by) params.registered_by = filters.registered_by;
+  if (filters.sort_by) params.sort_by = filters.sort_by;
+  if (filters.sort_order) params.sort_order = filters.sort_order;
+  if (filters.skip !== undefined) params.skip = filters.skip;
+  if (filters.limit !== undefined) params.limit = filters.limit;
+
+  const response = await api.get<PaperListResponse>('/papers', { params });
   return response.data;
 };
 

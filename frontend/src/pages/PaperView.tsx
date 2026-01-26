@@ -19,7 +19,7 @@ export default function PaperView() {
   const [paper, setPaper] = useState<PaperDetailType | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchPaper = useCallback(async (showLoading = true) => {
     if (!paperId) return;
@@ -97,8 +97,9 @@ export default function PaperView() {
   const handleToggleFavorite = async () => {
     if (!paperId) return;
     try {
-      await toggleFavorite(paperId);
-      await fetchPaper();
+      const updatedPaper = await toggleFavorite(paperId);
+      // 로컬 상태만 업데이트 (전체 재조회 대신)
+      setPaper(prev => prev ? { ...prev, is_favorite: updatedPaper.is_favorite } : null);
     } catch (err) {
       console.error('즐겨찾기 토글 실패:', err);
     }
@@ -108,8 +109,9 @@ export default function PaperView() {
     if (!paperId) return;
     setLoading(true);
     try {
-      await updateCitationCount(paperId);
-      await fetchPaper();
+      const updatedPaper = await updateCitationCount(paperId);
+      // 로컬 상태만 업데이트 (전체 재조회 대신)
+      setPaper(prev => prev ? { ...prev, citation_count: updatedPaper.citation_count } : null);
     } catch (err: any) {
       setError(err.response?.data?.detail || '인용수 업데이트 실패');
     } finally {

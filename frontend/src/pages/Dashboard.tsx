@@ -25,73 +25,59 @@ type TabType = 'all' | 'stage1' | 'stage2' | 'stage3' | 'favorites' | 'not_inter
 
 const PAGE_SIZE = 10;
 
-// localStorage 키
-const STORAGE_KEYS = {
-  SORT_BY: 'dashboard_sortBy',
-  SORT_ORDER: 'dashboard_sortOrder',
-  ACTIVE_TAB: 'dashboard_activeTab',
-  CURRENT_PAGE: 'dashboard_currentPage',
-  CATEGORY_FILTER: 'dashboard_categoryFilter',
-  REGISTERED_BY_FILTER: 'dashboard_registeredByFilter',
+// localStorage에서 대시보드 상태 로드 (배치 저장 방식)
+const loadDashboardState = () => {
+  try {
+    const saved = localStorage.getItem('dashboard_state');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch (e) {
+    console.error('대시보드 상태 로드 실패:', e);
+  }
+  return {};
 };
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { session, logout } = useUserSession();
+
+  // 저장된 대시보드 상태 로드 (배치 방식)
+  const savedState = loadDashboardState();
+
   const [papers, setPapers] = useState<Paper[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.ACTIVE_TAB);
-    return (saved as TabType) || 'all';
-  });
+  const [activeTab, setActiveTab] = useState<TabType>(savedState.activeTab || 'all');
   const [keyword, setKeyword] = useState('');
-  const [sortBy, setSortBy] = useState<string>(() => {
-    return localStorage.getItem(STORAGE_KEYS.SORT_BY) || 'created_at';
-  });
-  const [sortOrder, setSortOrder] = useState<string>(() => {
-    return localStorage.getItem(STORAGE_KEYS.SORT_ORDER) || 'desc';
-  });
-  const [currentPage, setCurrentPage] = useState<number>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_PAGE);
-    return saved ? parseInt(saved, 10) : 1;
-  });
+  const [sortBy, setSortBy] = useState<string>(savedState.sortBy || 'created_at');
+  const [sortOrder, setSortOrder] = useState<string>(savedState.sortOrder || 'desc');
+  const [currentPage, setCurrentPage] = useState<number>(savedState.currentPage || 1);
   // 카테고리 필터 상태
   const [categories, setCategories] = useState<string[]>([]);
-  const [categoryFilter, setCategoryFilter] = useState<string>(() => {
-    return localStorage.getItem(STORAGE_KEYS.CATEGORY_FILTER) || '';
-  });
+  const [categoryFilter, setCategoryFilter] = useState<string>(savedState.categoryFilter || '');
   // 등록자 필터 상태
   const [registeredByList, setRegisteredByList] = useState<string[]>([]);
-  const [registeredByFilter, setRegisteredByFilter] = useState<string>(() => {
-    return localStorage.getItem(STORAGE_KEYS.REGISTERED_BY_FILTER) || '';
-  });
+  const [registeredByFilter, setRegisteredByFilter] = useState<string>(savedState.registeredByFilter || '');
 
-  // 카테고리 목록 조회 (경량 API 사용 - 데이터 전송량 90% 감소)
-  const fetchCategories = useCallback(async () => {
+  // 필터 데이터 병렬 조회 (카테고리 + 등록자 목록)
+  const fetchFilterData = useCallback(async () => {
     try {
-      const categories = await getCategories();
-      setCategories(categories || []);
+      const [categoriesData, registeredByData] = await Promise.all([
+        getCategories(),
+        getRegisteredByList(),
+      ]);
+      setCategories(categoriesData || []);
+      setRegisteredByList(registeredByData || []);
     } catch (err) {
-      console.error('카테고리 로드 실패:', err);
-    }
-  }, []);
-
-  // 등록자 목록 조회
-  const fetchRegisteredByList = useCallback(async () => {
-    try {
-      const list = await getRegisteredByList();
-      setRegisteredByList(list || []);
-    } catch (err) {
-      console.error('등록자 목록 로드 실패:', err);
+      console.error('필터 데이터 로드 실패:', err);
     }
   }, []);
 
   useEffect(() => {
-    fetchCategories();
-    fetchRegisteredByList();
-  }, [fetchCategories, fetchRegisteredByList]);
+    fetchFilterData();
+  }, [fetchFilterData]);
 
   const fetchPapers = useCallback(async (page: number = currentPage) => {
     setLoading(true);
@@ -325,19 +311,28 @@ export default function Dashboard() {
   };
 
   // 키워드 변경 시 카테고리 목록도 갱신
-  const handleKeywordsChange = () => {
-    fetchCategories();
+  const handleKeywordsChange = async () => {
+    // 카테고리만 다시 조회 (등록자 목록은 키워드와 무관)
+    try {
+      const categoriesData = await getCategories();
+      setCategories(categoriesData || []);
+    } catch (err) {
+      console.error('카테고리 로드 실패:', err);
+    }
     fetchPapers();
   };
 
-  // localStorage 상태 동기화 (단일 useEffect로 통합)
+  // localStorage 상태 동기화 - 배치 저장 (6개 개별 쓰기 → 1개 JSON 객체)
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.SORT_BY, sortBy);
-    localStorage.setItem(STORAGE_KEYS.SORT_ORDER, sortOrder);
-    localStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, activeTab);
-    localStorage.setItem(STORAGE_KEYS.CURRENT_PAGE, currentPage.toString());
-    localStorage.setItem(STORAGE_KEYS.CATEGORY_FILTER, categoryFilter);
-    localStorage.setItem(STORAGE_KEYS.REGISTERED_BY_FILTER, registeredByFilter);
+    const dashboardState = {
+      sortBy,
+      sortOrder,
+      activeTab,
+      currentPage,
+      categoryFilter,
+      registeredByFilter,
+    };
+    localStorage.setItem('dashboard_state', JSON.stringify(dashboardState));
   }, [sortBy, sortOrder, activeTab, currentPage, categoryFilter, registeredByFilter]);
 
   const tabs: { key: TabType; label: string }[] = [

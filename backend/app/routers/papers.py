@@ -60,23 +60,16 @@ def get_papers(
     if stage is not None:
         query = query.filter(Paper.search_stage == stage)
 
-    # 즐겨찾기 필터링 (사용자별)
+    # 즐겨찾기 필터링 (사용자별) - 서브쿼리 중복 제거
     if favorite is not None and username:
+        favorite_paper_ids = db.query(UserFavorite.paper_id).filter(
+            UserFavorite.username == username
+        ).subquery()
+
         if favorite:
-            # 해당 사용자의 즐겨찾기 논문만 조회
-            favorite_paper_ids = db.query(UserFavorite.paper_id).filter(
-                UserFavorite.username == username
-            ).subquery()
             query = query.filter(Paper.paper_id.in_(favorite_paper_ids))
         else:
-            # 즐겨찾기가 아닌 논문
-            favorite_paper_ids = db.query(UserFavorite.paper_id).filter(
-                UserFavorite.username == username
-            ).subquery()
             query = query.filter(~Paper.paper_id.in_(favorite_paper_ids))
-    elif favorite is not None:
-        # 하위 호환: username 없으면 기존 is_favorite 사용
-        query = query.filter(Paper.is_favorite == favorite)
 
     if not_interested is not None:
         query = query.filter(Paper.is_not_interested == not_interested)

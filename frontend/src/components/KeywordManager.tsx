@@ -68,9 +68,14 @@ export default function KeywordManager({ onKeywordsChange }: KeywordManagerProps
       const category = newCategory.trim() || null;
       // 카테고리에 따라 자동으로 색상 결정
       const color = getColorForCategory(category);
-      await createKeyword(trimmed, category, color);
+      const newKw = await createKeyword(trimmed, category, color);
+      // 낙관적 업데이트: 로컬 상태에 즉시 추가 (전체 재조회 대신)
+      setKeywords(prev => [...prev, newKw]);
+      // 새 카테고리면 카테고리 목록에도 추가
+      if (category && !categories.includes(category)) {
+        setCategories(prev => [...prev, category]);
+      }
       setNewKeyword('');
-      await fetchKeywords();
       onKeywordsChange?.();
     } catch (err: any) {
       setError(err.response?.data?.detail || '키워드 추가 실패');
@@ -80,12 +85,19 @@ export default function KeywordManager({ onKeywordsChange }: KeywordManagerProps
   };
 
   const handleDeleteKeyword = async (keywordId: number) => {
+    // 낙관적 업데이트: 로컬 상태에서 즉시 제거
+    const deletedKeyword = keywords.find(kw => kw.id === keywordId);
+    setKeywords(prev => prev.filter(kw => kw.id !== keywordId));
+
     try {
       await deleteKeyword(keywordId);
-      await fetchKeywords();
       onKeywordsChange?.();
     } catch (err) {
       console.error('키워드 삭제 실패:', err);
+      // 실패 시 롤백
+      if (deletedKeyword) {
+        setKeywords(prev => [...prev, deletedKeyword]);
+      }
     }
   };
 

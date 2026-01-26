@@ -1,4 +1,5 @@
 import json
+import asyncio
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from datetime import date
@@ -66,21 +67,24 @@ class PaperService:
         if existing:
             return existing
 
-        # Get paper info from arXiv
-        arxiv_info = await self.arxiv.get_paper_info(paper_id)
-        if not arxiv_info:
-            return None
-
-        # Get citation count from Semantic Scholar (선택적)
-        citation_count = 0
-        if not skip_citation:
+        # 병렬로 API 호출 (arXiv + 인용수 + Figure URL)
+        async def get_citation_safe():
+            if skip_citation:
+                return 0
             try:
-                citation_count = await self.semantic.get_citation_count(paper_id)
+                return await self.semantic.get_citation_count(paper_id) or 0
             except Exception as e:
                 print(f"[PaperService] Citation count fetch failed, using 0: {e}")
+                return 0
 
-        # ar5iv에서 첫 번째 Figure 이미지 URL 추출
-        figure_url = await self.ar5iv.get_first_figure_url(paper_id)
+        arxiv_info, citation_count, figure_url = await asyncio.gather(
+            self.arxiv.get_paper_info(paper_id),
+            get_citation_safe(),
+            self.ar5iv.get_first_figure_url(paper_id),
+        )
+
+        if not arxiv_info:
+            return None
 
         # Create DB entry
         paper = Paper(
@@ -143,57 +147,80 @@ class PaperService:
         citing_papers = await self.semantic.get_citing_papers(paper_id, fetch_limit)
         print(f"[PaperService] Found {len(citing_papers)} citing papers from Semantic Scholar")
 
-        registered = []
+        # 등록할 논문 필터링 (중복 제외)
+        papers_to_register = []
         for citing in citing_papers:
-            # Stop if we have enough new papers
-            if len(registered) >= limit:
+            if len(papers_to_register) >= limit:
                 break
 
             citing_id = citing.get("paper_id")
-            if not citing_id:
+            if not citing_id or citing_id in existing_paper_ids:
+                if citing_id:
+                    print(f"[PaperService] Skipping {citing_id} (already exists)")
                 continue
 
-            # Skip if already exists in DB
-            if citing_id in existing_paper_ids:
-                print(f"[PaperService] Skipping {citing_id} (already exists)")
-                continue
+            papers_to_register.append(citing)
+            existing_paper_ids.add(citing_id)
 
-            # Get full info from arXiv
-            print(f"[PaperService] Registering citing paper: {citing_id}")
-            arxiv_info = await self.arxiv.get_paper_info(citing_id)
+        # 배치 병렬 처리 (10개씩)
+        registered = []
+        batch_size = 10
 
-            # ar5iv에서 첫 번째 Figure 이미지 URL 추출
-            figure_url = await self.ar5iv.get_first_figure_url(citing_id)
+        for i in range(0, len(papers_to_register), batch_size):
+            batch = papers_to_register[i:i + batch_size]
 
-            # Create DB entry
-            paper = Paper(
-                paper_id=citing_id,
-                title=citing.get("title") or (arxiv_info.get("title") if arxiv_info else None),
-                arxiv_date=arxiv_info.get("arxiv_date") if arxiv_info else None,
-                search_stage=1,
-                citation_count=citing.get("citation_count", 0),
-                registered_by=registered_by,
-                figure_url=figure_url,
+            # 각 배치의 API 호출을 병렬로 처리
+            async def process_paper(citing):
+                citing_id = citing.get("paper_id")
+                print(f"[PaperService] Registering citing paper: {citing_id}")
+                arxiv_info, figure_url = await asyncio.gather(
+                    self.arxiv.get_paper_info(citing_id),
+                    self.ar5iv.get_first_figure_url(citing_id),
+                )
+                return citing, arxiv_info, figure_url
+
+            batch_results = await asyncio.gather(
+                *[process_paper(citing) for citing in batch],
+                return_exceptions=True
             )
-            db.add(paper)
 
-            # Create paper file
-            paper_data = {
-                "paper_id": citing_id,
-                "title": paper.title,
-                "arxiv_date": paper.arxiv_date,
-                "search_stage": 1,
-                "citation_count": citing.get("citation_count", 0),
-                "figure_url": figure_url,
-            }
-            if arxiv_info:
-                paper_data["authors"] = arxiv_info.get("authors", [])
-                paper_data["abstract_en"] = arxiv_info.get("abstract")
-                paper_data["pdf_url"] = arxiv_info.get("pdf_url")
+            # 결과 처리
+            for result in batch_results:
+                if isinstance(result, Exception):
+                    print(f"[PaperService] Error processing paper: {result}")
+                    continue
 
-            self._save_paper_file(citing_id, paper_data)
-            registered.append(paper)
-            existing_paper_ids.add(citing_id)  # Add to set to avoid duplicates within batch
+                citing, arxiv_info, figure_url = result
+                citing_id = citing.get("paper_id")
+
+                # Create DB entry
+                paper = Paper(
+                    paper_id=citing_id,
+                    title=citing.get("title") or (arxiv_info.get("title") if arxiv_info else None),
+                    arxiv_date=arxiv_info.get("arxiv_date") if arxiv_info else None,
+                    search_stage=1,
+                    citation_count=citing.get("citation_count", 0),
+                    registered_by=registered_by,
+                    figure_url=figure_url,
+                )
+                db.add(paper)
+
+                # Create paper file
+                paper_data = {
+                    "paper_id": citing_id,
+                    "title": paper.title,
+                    "arxiv_date": paper.arxiv_date,
+                    "search_stage": 1,
+                    "citation_count": citing.get("citation_count", 0),
+                    "figure_url": figure_url,
+                }
+                if arxiv_info:
+                    paper_data["authors"] = arxiv_info.get("authors", [])
+                    paper_data["abstract_en"] = arxiv_info.get("abstract")
+                    paper_data["pdf_url"] = arxiv_info.get("pdf_url")
+
+                self._save_paper_file(citing_id, paper_data)
+                registered.append(paper)
 
         db.commit()
 

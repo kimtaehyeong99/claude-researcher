@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -22,14 +23,31 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# CORS middleware for React frontend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS 설정 - 환경변수로 관리 (외부 접속 지원)
+# 기본값: "*" (모든 도메인 허용)
+# 특정 도메인만 허용: ALLOWED_ORIGINS=http://192.168.1.100:5173,https://yourdomain.com
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*")
+
+if ALLOWED_ORIGINS == "*":
+    # 모든 도메인 허용 (개발 환경 또는 외부 접속 허용 시)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    # 특정 도메인만 허용
+    origins = [origin.strip() for origin in ALLOWED_ORIGINS.split(",")]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "X-Username"],
+        max_age=3600,  # 프리플라이트 캐싱 (1시간)
+    )
 
 # Include routers
 app.include_router(papers_router, prefix="/api/papers", tags=["Papers"])

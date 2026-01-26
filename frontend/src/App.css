@@ -1111,39 +1111,6 @@ body {
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-/* Legacy sort-controls (keep for compatibility) */
-.sort-controls {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-}
-
-.sort-controls label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  color: #555;
-  font-weight: 500;
-}
-
-.sort-controls select {
-  padding: 0.5rem 0.8rem;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  background: white;
-  cursor: pointer;
-  color: #333;
-  transition: border-color 0.2s;
-}
-
-.sort-controls select:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
 /* Trending Papers */
 .trending-papers {
   background: white;
@@ -1673,38 +1640,45 @@ body {
   margin-bottom: 0.75rem;
 }
 
+/* Unified keyword input style - used in Daily Papers and Keyword Manager */
 .keyword-input {
   flex: 1;
-  padding: 0.6rem 1rem;
+  padding: 0.5rem 0.75rem;
   border: 1px solid #ddd;
-  border-radius: 8px;
+  border-radius: 6px;
   font-size: 0.9rem;
   transition: border-color 0.2s;
 }
 
 .keyword-input:focus {
   outline: none;
-  border-color: #ff6b35;
+  border-color: #667eea;
 }
 
 .keyword-input::placeholder {
   color: #aaa;
 }
 
+/* Unified keyword add button - used in Daily Papers and Keyword Manager */
 .keyword-add-btn {
-  padding: 0.6rem 1.2rem;
-  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+  padding: 0.5rem 1rem;
+  background: #667eea;
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   font-size: 0.9rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: background 0.2s;
 }
 
-.keyword-add-btn:hover {
-  opacity: 0.9;
+.keyword-add-btn:hover:not(:disabled) {
+  background: #5a6fd6;
+}
+
+.keyword-add-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
 }
 
 .keyword-tags {
@@ -2166,19 +2140,6 @@ body {
   gap: 0.5rem;
 }
 
-.keyword-input {
-  width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 0.9rem;
-}
-
-.keyword-input:focus {
-  outline: none;
-  border-color: #667eea;
-}
-
 .color-picker {
   display: flex;
   gap: 0.4rem;
@@ -2200,25 +2161,6 @@ body {
 
 .color-btn.selected {
   border-color: #333;
-}
-
-.keyword-add-btn {
-  padding: 0.5rem 1rem;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.9rem;
-}
-
-.keyword-add-btn:hover:not(:disabled) {
-  background: #5a6fd6;
-}
-
-.keyword-add-btn:disabled {
-  background: #ccc;
-  cursor: not-allowed;
 }
 
 .keyword-error {
@@ -2270,15 +2212,6 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
-}
-
-.keyword-input-row {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.keyword-input-row .keyword-input {
-  flex: 1;
 }
 
 .category-input {
