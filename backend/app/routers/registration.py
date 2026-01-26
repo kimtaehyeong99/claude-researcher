@@ -7,6 +7,8 @@ from app.schemas.paper import (
     PaperResponse,
     RegisterNewRequest,
     RegisterCitationsRequest,
+    RegisterBulkRequest,
+    BulkRegisterResponse,
 )
 from app.services.paper_service import PaperService
 
@@ -66,3 +68,30 @@ async def register_citing_papers(
 
     # Return papers (even if empty - means all citing papers already exist)
     return papers
+
+
+@router.post("/bulk", response_model=BulkRegisterResponse)
+async def register_papers_bulk(
+    request: RegisterBulkRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    선택된 논문 일괄 등록
+
+    - 여러 arXiv 논문 ID + 인용수를 한 번에 등록
+    - 이미 등록된 논문은 스킵
+    - 등록 성공/스킵/실패 개수 반환
+    """
+    papers_info = [{"paper_id": p.paper_id, "citation_count": p.citation_count} for p in request.papers]
+    registered, skipped, failed = await paper_service.register_papers_bulk(
+        db,
+        papers_info,
+        registered_by=request.registered_by,
+    )
+
+    return BulkRegisterResponse(
+        registered=[PaperResponse.model_validate(p) for p in registered],
+        skipped=skipped,
+        failed=failed,
+        message=f"{len(registered)}개 등록, {len(skipped)}개 스킵, {len(failed)}개 실패",
+    )

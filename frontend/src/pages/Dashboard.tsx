@@ -158,20 +158,6 @@ export default function Dashboard() {
     }
   };
 
-  const handleRegisterCitations = async (paperId: string, limit: number, registeredBy?: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await registerCitingPapers(paperId, limit, registeredBy);
-      await fetchPapers();
-      alert(`${result.length}개의 새로운 인용 논문이 등록되었습니다.`);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || '인용 논문 등록에 실패했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleToggleFavorite = async (paperId: string) => {
     try {
       const updatedPaper = await toggleFavorite(paperId);
@@ -366,7 +352,7 @@ export default function Dashboard() {
         <aside className="sidebar">
           <RegisterForm
             onRegisterNew={handleRegisterNew}
-            onRegisterCitations={handleRegisterCitations}
+            onBulkRegisterComplete={() => fetchPapers()}
             loading={loading}
           />
           <KeywordManager onKeywordsChange={handleKeywordsChange} />

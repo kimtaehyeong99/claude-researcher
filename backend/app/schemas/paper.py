@@ -63,3 +63,39 @@ class RegisterCitationsRequest(BaseModel):
     paper_id: str  # e.g., "2306.02437"
     limit: int = 50  # Maximum number of citing papers to register
     registered_by: Optional[str] = None  # 등록자 이름
+
+
+# 주제 검색 결과용 스키마
+class SearchResultPaper(BaseModel):
+    paper_id: str
+    title: Optional[str] = None
+    authors: List[str] = []
+    year: Optional[int] = None
+    citation_count: int = 0
+    abstract: Optional[str] = None
+    already_registered: bool = False
+
+
+class TopicSearchResponse(BaseModel):
+    papers: List[SearchResultPaper]
+    total: int
+    query: str
+
+
+# 일괄 등록용 논문 정보
+class BulkPaperInfo(BaseModel):
+    paper_id: str
+    citation_count: int = 0
+
+
+# 일괄 등록 요청/응답 스키마
+class RegisterBulkRequest(BaseModel):
+    papers: List[BulkPaperInfo]  # paper_id + citation_count
+    registered_by: Optional[str] = None
+
+
+class BulkRegisterResponse(BaseModel):
+    registered: List[PaperResponse]
+    skipped: List[str]
+    failed: List[str]
+    message: str

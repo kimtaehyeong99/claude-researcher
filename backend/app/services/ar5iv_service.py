@@ -35,38 +35,30 @@ class Ar5ivService:
 
                 soup = BeautifulSoup(response.text, 'html.parser')
 
-                # figure 태그 내 img 찾기
-                figures = soup.find_all('figure')
-                for figure in figures:
-                    img = figure.find('img')
-                    if img and img.get('src'):
-                        src = img['src']
-
-                        # 상대 경로를 절대 경로로 변환
-                        if src.startswith('/'):
-                            full_url = f"{self.BASE_URL}{src}"
-                        elif not src.startswith('http'):
-                            full_url = f"{self.BASE_URL}/html/{paper_id}/{src}"
-                        else:
-                            full_url = src
-
-                        print(f"[Ar5iv] Found figure: {full_url}")
-                        return full_url
-
-                # figure 태그가 없으면 일반 img 태그에서 찾기 (assets/figures 경로)
+                # HTML에서 모든 img 태그를 순서대로 찾아서 첫 번째 유효한 figure 이미지 반환
+                # (figure 태그 안에 있든 없든 상관없이 HTML 순서대로)
                 images = soup.find_all('img')
                 for img in images:
                     src = img.get('src', '')
-                    if 'assets' in src or 'figures' in src or 'images' in src:
-                        if src.startswith('/'):
-                            full_url = f"{self.BASE_URL}{src}"
-                        elif not src.startswith('http'):
-                            full_url = f"{self.BASE_URL}/html/{paper_id}/{src}"
-                        else:
-                            full_url = src
 
-                        print(f"[Ar5iv] Found image: {full_url}")
-                        return full_url
+                    # figure 관련 이미지만 선택 (assets, figures, images 경로)
+                    if not ('assets' in src or 'figures' in src or 'images' in src):
+                        continue
+
+                    # 로고, 아이콘 등 제외
+                    if 'logo' in src.lower() or 'icon' in src.lower():
+                        continue
+
+                    # 상대 경로를 절대 경로로 변환
+                    if src.startswith('/'):
+                        full_url = f"{self.BASE_URL}{src}"
+                    elif not src.startswith('http'):
+                        full_url = f"{self.BASE_URL}/html/{paper_id}/{src}"
+                    else:
+                        full_url = src
+
+                    print(f"[Ar5iv] Found first image: {full_url}")
+                    return full_url
 
                 print(f"[Ar5iv] No figure found: {paper_id}")
                 return None

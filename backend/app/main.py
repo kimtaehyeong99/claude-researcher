@@ -13,6 +13,7 @@ from app.routers import (
 from app.routers.trending import router as trending_router
 from app.routers.keywords import router as keywords_router
 from app.routers.access_logs import router as access_logs_router
+from app.routers.topic_search import router as topic_search_router
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -57,6 +58,8 @@ app.include_router(deep_search_router, prefix="/api/search", tags=["Deep Search"
 app.include_router(trending_router, prefix="/api/trending", tags=["Trending"])
 app.include_router(keywords_router, prefix="/api/keywords", tags=["Keywords"])
 app.include_router(access_logs_router, prefix="/api/access-logs", tags=["Access Logs"])
+app.include_router(topic_search_router, prefix="/api/topic-search", tags=["Topic Search"])
+app.include_router(topic_search_router, prefix="/api", tags=["Citations Preview"])
 
 
 @app.get("/")

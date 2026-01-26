@@ -1,7 +1,7 @@
 import json
 import asyncio
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 from datetime import date
 
 from sqlalchemy.orm import Session
@@ -375,7 +375,7 @@ class PaperService:
 
     async def update_citation_count(self, db: Session, paper_id: str) -> Optional[Paper]:
         """
-        Update citation count for a paper (OpenAlex 우선, 실패 시 Semantic Scholar)
+        Update citation count for a paper (Semantic Scholar 사용)
 
         Args:
             db: Database session
@@ -389,26 +389,123 @@ class PaperService:
             return None
 
         try:
-            # OpenAlex 먼저 시도 (빠름)
-            citation_count = await self.openalex.get_citation_count(paper_id)
+            citation_count = await self.semantic.get_citation_count(paper_id)
+            print(f"[PaperService] Citation count for {paper_id}: {citation_count}")
 
-            # OpenAlex가 실패하거나 0인 경우 Semantic Scholar로 폴백
-            # (최신 논문은 OpenAlex에 인용 정보가 늦게 반영됨)
-            if citation_count is None or citation_count == 0:
-                print(f"[PaperService] OpenAlex returned {citation_count}, trying Semantic Scholar...")
-                semantic_count = await self.semantic.get_citation_count(paper_id)
-                if semantic_count is not None and semantic_count > 0:
-                    citation_count = semantic_count
-
-            if citation_count is not None:
+            if citation_count is not None and citation_count >= 0:
                 paper.citation_count = citation_count
                 db.commit()
                 db.refresh(paper)
                 print(f"[PaperService] Updated citation count for {paper_id}: {citation_count}")
                 return paper
             else:
-                print(f"[PaperService] Could not get citation count from any source")
+                print(f"[PaperService] Could not get citation count from Semantic Scholar")
                 return None
         except Exception as e:
             print(f"[PaperService] Failed to update citation count: {e}")
             return None
+
+    async def register_papers_bulk(
+        self,
+        db: Session,
+        papers_info: List[Dict[str, Any]],
+        registered_by: Optional[str] = None
+    ) -> Tuple[List[Paper], List[str], List[str]]:
+        """
+        여러 논문 일괄 등록 (10개씩 배치 병렬 처리)
+
+        Args:
+            db: Database session
+            papers_info: 등록할 논문 정보 목록 [{"paper_id": str, "citation_count": int}, ...]
+            registered_by: 등록자 이름
+
+        Returns:
+            Tuple of (registered_papers, skipped_ids, failed_ids)
+        """
+        # paper_id -> citation_count 매핑
+        citation_map = {p["paper_id"]: p.get("citation_count", 0) for p in papers_info}
+        paper_ids = list(citation_map.keys())
+
+        # 이미 등록된 논문 확인
+        existing = set(
+            row[0] for row in db.query(Paper.paper_id)
+            .filter(Paper.paper_id.in_(paper_ids))
+            .all()
+        )
+
+        skipped = list(existing)
+        to_register = [pid for pid in paper_ids if pid not in existing]
+
+        print(f"[PaperService] Bulk register: {len(to_register)} to register, {len(skipped)} skipped")
+
+        registered = []
+        failed = []
+
+        # 배치 병렬 처리 (10개씩)
+        batch_size = 10
+        for i in range(0, len(to_register), batch_size):
+            batch = to_register[i:i + batch_size]
+
+            async def process_paper(paper_id: str):
+                try:
+                    print(f"[PaperService] Bulk registering: {paper_id}")
+                    arxiv_info, figure_url = await asyncio.gather(
+                        self.arxiv.get_paper_info(paper_id),
+                        self.ar5iv.get_first_figure_url(paper_id),
+                    )
+                    return paper_id, arxiv_info, figure_url, None
+                except Exception as e:
+                    return paper_id, None, None, str(e)
+
+            results = await asyncio.gather(
+                *[process_paper(pid) for pid in batch],
+                return_exceptions=True
+            )
+
+            for result in results:
+                if isinstance(result, Exception):
+                    print(f"[PaperService] Batch processing error: {result}")
+                    continue
+
+                paper_id, arxiv_info, figure_url, error = result
+
+                if error or not arxiv_info:
+                    print(f"[PaperService] Failed to register {paper_id}: {error}")
+                    failed.append(paper_id)
+                    continue
+
+                # DB 저장 (검색 결과의 인용수 사용)
+                paper = Paper(
+                    paper_id=paper_id,
+                    title=arxiv_info.get("title"),
+                    arxiv_date=arxiv_info.get("arxiv_date"),
+                    search_stage=1,
+                    citation_count=citation_map.get(paper_id, 0),
+                    registered_by=registered_by,
+                    figure_url=figure_url,
+                )
+                db.add(paper)
+
+                # JSON 파일 저장
+                paper_data = {
+                    "paper_id": paper_id,
+                    "title": arxiv_info.get("title"),
+                    "arxiv_date": arxiv_info.get("arxiv_date"),
+                    "search_stage": 1,
+                    "authors": arxiv_info.get("authors", []),
+                    "abstract_en": arxiv_info.get("abstract"),
+                    "pdf_url": arxiv_info.get("pdf_url"),
+                    "figure_url": figure_url,
+                }
+                self._save_paper_file(paper_id, paper_data)
+                registered.append(paper)
+
+        db.commit()
+
+        # 키워드 매칭
+        for paper in registered:
+            self.keyword_service.update_paper_keywords(db, paper)
+        db.commit()
+
+        print(f"[PaperService] Bulk register complete: {len(registered)} registered, {len(failed)} failed")
+        return registered, skipped, failed

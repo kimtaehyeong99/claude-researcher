@@ -14,7 +14,7 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const SESSION_STORAGE_KEY = 'user_session';
   try {
-    const saved = localStorage.getItem(SESSION_STORAGE_KEY);
+    const saved = sessionStorage.getItem(SESSION_STORAGE_KEY);
     if (saved) {
       const session = JSON.parse(saved);
       if (session.username) {
@@ -137,6 +137,70 @@ export const registerCitingPapers = async (paperId: string, limit: number = 50, 
   const response = await api.post<Paper[]>('/register/citations', {
     paper_id: paperId,
     limit,
+    registered_by: registeredBy,
+  });
+  return response.data;
+};
+
+// Topic search types
+export interface SearchResultPaper {
+  paper_id: string;
+  title: string | null;
+  authors: string[];
+  year: number | null;
+  citation_count: number;
+  abstract: string | null;
+  already_registered: boolean;
+}
+
+export interface TopicSearchResponse {
+  papers: SearchResultPaper[];
+  total: number;
+  query: string;
+}
+
+export interface TopicSearchParams {
+  query: string;
+  limit?: number;
+  sort?: 'publicationDate' | 'citationCount' | 'relevance';
+  year_from?: number;
+}
+
+export interface CitationsPreviewParams {
+  paper_id: string;
+  limit?: number;
+  sort?: 'citationCount' | 'publicationDate';
+  year_from?: number;
+}
+
+export interface BulkRegisterResponse {
+  registered: Paper[];
+  skipped: string[];
+  failed: string[];
+  message: string;
+}
+
+// Search papers by topic
+export const searchByTopic = async (params: TopicSearchParams): Promise<TopicSearchResponse> => {
+  const response = await api.get<TopicSearchResponse>('/topic-search', { params });
+  return response.data;
+};
+
+// Preview citing papers (before registration)
+export const previewCitingPapers = async (params: CitationsPreviewParams): Promise<TopicSearchResponse> => {
+  const response = await api.get<TopicSearchResponse>('/citations-preview', { params });
+  return response.data;
+};
+
+// Bulk register papers (with citation counts)
+export interface BulkPaperInfo {
+  paper_id: string;
+  citation_count: number;
+}
+
+export const registerBulk = async (papers: BulkPaperInfo[], registeredBy?: string): Promise<BulkRegisterResponse> => {
+  const response = await api.post<BulkRegisterResponse>('/register/bulk', {
+    papers,
     registered_by: registeredBy,
   });
   return response.data;
