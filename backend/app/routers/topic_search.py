@@ -4,11 +4,13 @@ from typing import Optional
 
 from app.database import get_db
 from app.models.paper import Paper
-from app.schemas.paper import TopicSearchResponse, SearchResultPaper
+from app.schemas.paper import TopicSearchResponse, SearchResultPaper, AISearchRequest, AISearchResponse
 from app.services.semantic_service import SemanticScholarService
+from app.services.ai_search_service import AISearchService
 
 router = APIRouter()
 semantic_service = SemanticScholarService()
+ai_search_service = AISearchService()
 
 
 @router.get("/citations-preview", response_model=TopicSearchResponse)
@@ -126,4 +128,67 @@ async def search_papers_by_topic(
         papers=result_papers,
         total=len(result_papers),
         query=query,
+    )
+
+
+@router.post("/ai-search", response_model=AISearchResponse)
+async def ai_search_papers(
+    request: AISearchRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    AI 기반 논문 검색 (Claude를 활용한 지능형 검색)
+
+    - **query**: 자연어 검색 쿼리 (예: "로봇 모방학습 데이터 증강 기술")
+    - **limit**: 최대 결과 수 (기본 20)
+    - **year_from**: 이 연도 이후 논문만 검색 (선택)
+
+    Claude가 검색어를 분석하여 키워드를 확장하고,
+    검색 결과를 관련성으로 재순위합니다.
+    """
+    # AI 검색 실행
+    result = await ai_search_service.search_with_ai(
+        user_query=request.query,
+        limit=request.limit,
+        year_from=request.year_from,
+    )
+
+    papers = result.get("papers", [])
+    expanded_keywords = result.get("expanded_keywords", [])
+    search_intent = result.get("search_intent", "")
+
+    # 이미 등록된 논문 및 관심 없음 논문 확인
+    paper_ids = [p["paper_id"] for p in papers]
+    existing = set()
+    not_interested = set()
+    if paper_ids:
+        db_papers = db.query(Paper.paper_id, Paper.is_not_interested).filter(
+            Paper.paper_id.in_(paper_ids)
+        ).all()
+        for pid, is_not_interested in db_papers:
+            existing.add(pid)
+            if is_not_interested:
+                not_interested.add(pid)
+
+    # 응답 생성 (관심 없음 논문 제외)
+    result_papers = [
+        SearchResultPaper(
+            paper_id=p["paper_id"],
+            title=p.get("title"),
+            authors=p.get("authors", []),
+            year=p.get("year"),
+            citation_count=p.get("citation_count", 0),
+            abstract=p.get("abstract"),
+            already_registered=p["paper_id"] in existing,
+        )
+        for p in papers
+        if p["paper_id"] not in not_interested
+    ]
+
+    return AISearchResponse(
+        papers=result_papers,
+        total=len(result_papers),
+        query=request.query,
+        expanded_keywords=expanded_keywords,
+        search_intent=search_intent,
     )

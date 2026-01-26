@@ -192,6 +192,24 @@ export const previewCitingPapers = async (params: CitationsPreviewParams): Promi
   return response.data;
 };
 
+// AI Search types
+export interface AISearchParams {
+  query: string;
+  limit?: number;
+  year_from?: number;
+}
+
+export interface AISearchResponse extends TopicSearchResponse {
+  expanded_keywords: string[];
+  search_intent: string;
+}
+
+// AI Search (Claude-powered intelligent search)
+export const aiSearch = async (params: AISearchParams): Promise<AISearchResponse> => {
+  const response = await api.post<AISearchResponse>('/topic-search/ai-search', params);
+  return response.data;
+};
+
 // Bulk register papers (with citation counts)
 export interface BulkPaperInfo {
   paper_id: string;

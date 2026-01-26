@@ -82,6 +82,21 @@ class TopicSearchResponse(BaseModel):
     query: str
 
 
+# AI 검색 요청/응답 스키마
+class AISearchRequest(BaseModel):
+    query: str  # 자연어 검색 쿼리
+    limit: int = 20
+    year_from: Optional[int] = None
+
+
+class AISearchResponse(BaseModel):
+    papers: List[SearchResultPaper]
+    total: int
+    query: str
+    expanded_keywords: List[str] = []  # Claude가 확장한 키워드
+    search_intent: str = ""  # 검색 의도 요약
+
+
 # 일괄 등록용 논문 정보
 class BulkPaperInfo(BaseModel):
     paper_id: str
