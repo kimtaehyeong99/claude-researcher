@@ -82,7 +82,12 @@ const PaperRow = memo(function PaperRow({
         onClick={() => onPaperClick(paper.paper_id)}
         title={paper.title || '제목 없음'}
       >
-        <span className="title-text">{paper.title || '제목 없음'}</span>
+        <span className="title-text">
+          {paper.is_shared && (
+            <span className="shared-badge" title={paper.shared_by ? `${paper.shared_by}님이 공유` : '공유됨'}>📤</span>
+          )}
+          {paper.title || '제목 없음'}
+        </span>
         {paper.matched_keywords && paper.matched_keywords.length > 0 && (
           <span className="matched-keywords">
             {paper.matched_keywords.map((kw) => (

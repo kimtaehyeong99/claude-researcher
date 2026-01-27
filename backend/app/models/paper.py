@@ -15,6 +15,9 @@ class Paper(Base):
     analysis_status = Column(String, nullable=True)  # 분석 상태: "simple_analyzing", "deep_analyzing", None(완료)
     is_favorite = Column(Boolean, default=False)
     is_not_interested = Column(Boolean, default=False)
+    is_shared = Column(Boolean, default=False)  # 논문 공유 상태
+    shared_by = Column(String, nullable=True)  # 공유한 사람
+    shared_at = Column(DateTime(timezone=True), nullable=True)  # 공유 시점
     citation_count = Column(Integer, default=0)
     registered_by = Column(String, nullable=True)  # 등록자 이름 (e.g., "태형", "원호")
     figure_url = Column(String, nullable=True)  # 논문 첫 Figure 이미지 URL (ar5iv에서 추출)

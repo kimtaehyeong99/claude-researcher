@@ -13,6 +13,7 @@ interface PaperDetailProps {
   onSimpleSearch: () => void;
   onDeepSearch: () => void;
   onToggleFavorite: () => void;
+  onToggleShare: () => void;
   onUpdateCitation: () => void;
   onBack: () => void;
   loading?: boolean;
@@ -54,6 +55,7 @@ export default function PaperDetail({
   onSimpleSearch,
   onDeepSearch,
   onToggleFavorite,
+  onToggleShare,
   onUpdateCitation,
   onBack,
   loading,
@@ -84,12 +86,28 @@ export default function PaperDetail({
         <button onClick={onBack} className="back-button">
           ← 목록으로
         </button>
-        <FavoriteButton
-          isFavorite={paper.is_favorite}
-          onClick={onToggleFavorite}
-          disabled={loading}
-        />
+        <div className="detail-actions">
+          <FavoriteButton
+            isFavorite={paper.is_favorite}
+            onClick={onToggleFavorite}
+            disabled={loading}
+          />
+          <button
+            onClick={onToggleShare}
+            disabled={loading}
+            className={`share-button ${paper.is_shared ? 'active' : ''}`}
+            title={paper.is_shared ? '공유 해제' : '논문 공유'}
+          >
+            📤
+          </button>
+        </div>
       </div>
+
+      {paper.is_shared && paper.shared_by && (
+        <div className="shared-info">
+          📤 {paper.shared_by}님이 공유함
+        </div>
+      )}
 
       <div className="detail-meta">
         <span className="paper-id">arXiv: {paper.paper_id}</span>

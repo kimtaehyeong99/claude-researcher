@@ -6,6 +6,7 @@ import {
   simpleSearch,
   deepSearch,
   toggleFavorite,
+  toggleShare,
   updateCitationCount,
 } from '../api/paperApi';
 import PaperDetail from '../components/PaperDetail';
@@ -105,6 +106,22 @@ export default function PaperView() {
     }
   };
 
+  const handleToggleShare = async () => {
+    if (!paperId) return;
+    try {
+      const updatedPaper = await toggleShare(paperId);
+      // 로컬 상태만 업데이트
+      setPaper(prev => prev ? {
+        ...prev,
+        is_shared: updatedPaper.is_shared,
+        shared_by: updatedPaper.shared_by,
+        shared_at: updatedPaper.shared_at,
+      } : null);
+    } catch (err) {
+      console.error('공유 토글 실패:', err);
+    }
+  };
+
   const handleUpdateCitation = async () => {
     if (!paperId) return;
     setLoading(true);
@@ -148,6 +165,7 @@ export default function PaperView() {
         onSimpleSearch={handleSimpleSearch}
         onDeepSearch={handleDeepSearch}
         onToggleFavorite={handleToggleFavorite}
+        onToggleShare={handleToggleShare}
         onUpdateCitation={handleUpdateCitation}
         onBack={handleBack}
         loading={loading}

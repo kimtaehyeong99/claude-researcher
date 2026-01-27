@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from sqlalchemy.orm import Session
 from typing import Optional, List
@@ -39,6 +40,7 @@ def get_papers(
     favorite: Optional[bool] = Query(None, description="Filter by favorite status"),
     not_interested: Optional[bool] = Query(None, description="Filter by not interested status"),
     hide_not_interested: Optional[bool] = Query(True, description="Hide not interested papers"),
+    shared: Optional[bool] = Query(None, description="Filter by shared status"),
     keyword: Optional[str] = Query(None, description="Search in title"),
     matched_category: Optional[str] = Query(None, description="Filter by matched keyword category"),
     no_category_match: Optional[bool] = Query(None, description="Filter papers with no category match"),
@@ -75,6 +77,10 @@ def get_papers(
         query = query.filter(Paper.is_not_interested == not_interested)
     elif hide_not_interested:
         query = query.filter(Paper.is_not_interested == False)
+
+    # 공유 필터링
+    if shared is not None:
+        query = query.filter(Paper.is_shared == shared)
 
     if keyword:
         query = query.filter(Paper.title.ilike(f"%{keyword}%"))
@@ -188,6 +194,9 @@ def get_paper(
         analysis_status=paper.analysis_status,
         is_favorite=is_favorite,
         is_not_interested=paper.is_not_interested,
+        is_shared=paper.is_shared,
+        shared_by=paper.shared_by,
+        shared_at=paper.shared_at,
         citation_count=paper.citation_count,
         registered_by=paper.registered_by,
         figure_url=paper.figure_url,
@@ -259,6 +268,36 @@ def toggle_not_interested(paper_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Paper not found")
 
     paper.is_not_interested = not paper.is_not_interested
+    db.commit()
+    db.refresh(paper)
+
+    return paper
+
+
+@router.patch("/{paper_id}/share", response_model=PaperResponse)
+def toggle_share(
+    paper_id: str,
+    db: Session = Depends(get_db),
+    username: Optional[str] = Depends(get_current_username),
+):
+    """
+    Toggle paper share status
+    """
+    paper = db.query(Paper).filter(Paper.paper_id == paper_id).first()
+    if not paper:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    if paper.is_shared:
+        # 공유 해제
+        paper.is_shared = False
+        paper.shared_by = None
+        paper.shared_at = None
+    else:
+        # 공유 설정
+        paper.is_shared = True
+        paper.shared_by = username
+        paper.shared_at = datetime.now()
+
     db.commit()
     db.refresh(paper)
 

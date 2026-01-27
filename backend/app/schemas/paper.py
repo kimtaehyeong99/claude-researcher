@@ -20,6 +20,9 @@ class PaperResponse(PaperBase):
     analysis_status: Optional[str] = None  # 분석 상태: "simple_analyzing", "deep_analyzing", None(완료)
     is_favorite: bool
     is_not_interested: bool
+    is_shared: bool = False  # 논문 공유 상태
+    shared_by: Optional[str] = None  # 공유한 사람
+    shared_at: Optional[datetime] = None  # 공유 시점
     citation_count: int
     registered_by: Optional[str] = None  # 등록자 이름
     figure_url: Optional[str] = None  # 논문 첫 Figure 이미지 URL

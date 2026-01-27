@@ -37,6 +37,9 @@ export interface Paper {
   analysis_status: 'simple_analyzing' | 'deep_analyzing' | null;  // 분석 상태
   is_favorite: boolean;
   is_not_interested: boolean;
+  is_shared: boolean;  // 논문 공유 상태
+  shared_by: string | null;  // 공유한 사람
+  shared_at: string | null;  // 공유 시점
   citation_count: number;
   registered_by: string | null;  // 등록자 이름
   figure_url: string | null;  // 논문 첫 Figure 이미지 URL
@@ -60,6 +63,7 @@ export interface PaperFilters {
   favorite?: boolean;
   not_interested?: boolean;
   hide_not_interested?: boolean;
+  shared?: boolean;  // 공유 필터
   keyword?: string;
   matched_category?: string;  // 카테고리 필터
   no_category_match?: boolean;  // 카테고리 미해당 필터
@@ -104,6 +108,7 @@ export const getPapers = async (filters: PaperFilters = {}): Promise<PaperListRe
   if (filters.favorite !== undefined) params.favorite = filters.favorite;
   if (filters.not_interested !== undefined) params.not_interested = filters.not_interested;
   if (filters.hide_not_interested !== undefined) params.hide_not_interested = filters.hide_not_interested;
+  if (filters.shared !== undefined) params.shared = filters.shared;
   if (filters.keyword) params.keyword = filters.keyword;
   if (filters.matched_category) params.matched_category = filters.matched_category;
   if (filters.no_category_match !== undefined) params.no_category_match = filters.no_category_match;
@@ -245,6 +250,12 @@ export const toggleFavorite = async (paperId: string): Promise<Paper> => {
 // Toggle not interested
 export const toggleNotInterested = async (paperId: string): Promise<Paper> => {
   const response = await api.patch<Paper>(`/papers/${paperId}/not-interested`);
+  return response.data;
+};
+
+// Toggle share
+export const toggleShare = async (paperId: string): Promise<Paper> => {
+  const response = await api.patch<Paper>(`/papers/${paperId}/share`);
   return response.data;
 };
 

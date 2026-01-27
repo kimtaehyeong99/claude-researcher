@@ -175,7 +175,7 @@ export default function RegisterForm({
               checked={mode === 'topic'}
               onChange={() => setMode('topic')}
             />
-            주제 검색
+            논문 검색
           </label>
           <label>
             <input

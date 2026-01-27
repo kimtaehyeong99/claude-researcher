@@ -21,7 +21,7 @@ import RegisterForm from '../components/RegisterForm';
 import SearchBar from '../components/SearchBar';
 import KeywordManager from '../components/KeywordManager';
 
-type TabType = 'all' | 'stage1' | 'stage2' | 'stage3' | 'favorites' | 'not_interested';
+type TabType = 'all' | 'stage1' | 'stage2' | 'stage3' | 'favorites' | 'shared' | 'not_interested';
 
 const PAGE_SIZE = 10;
 
@@ -107,6 +107,10 @@ export default function Dashboard() {
           break;
         case 'favorites':
           filters.favorite = true;
+          filters.hide_not_interested = false;
+          break;
+        case 'shared':
+          filters.shared = true;
           filters.hide_not_interested = false;
           break;
         case 'not_interested':
@@ -327,6 +331,7 @@ export default function Dashboard() {
     { key: 'stage2', label: '개요 분석' },
     { key: 'stage3', label: '상세 분석' },
     { key: 'favorites', label: '즐겨찾기' },
+    { key: 'shared', label: '공유됨' },
     { key: 'not_interested', label: '관심없음' },
   ];
 

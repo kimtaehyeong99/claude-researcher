@@ -4,6 +4,7 @@ import { verifyAdmin, getAccessLogs, deleteAccessLog, deleteAllAccessLogs } from
 import type { AccessLog } from '../api/accessApi';
 
 const ADMIN_SESSION_KEY = 'admin_authenticated';
+const PAGE_SIZE = 10;
 
 export default function AdminPage() {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [logs, setLogs] = useState<AccessLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // 세션 확인
   useEffect(() => {
@@ -87,7 +89,13 @@ export default function AdminPage() {
 
     try {
       await deleteAccessLog(adminPassword, logId);
-      setLogs(logs.filter(log => log.id !== logId));
+      const newLogs = logs.filter(log => log.id !== logId);
+      setLogs(newLogs);
+      // 현재 페이지가 범위를 벗어나면 조정
+      const maxPage = Math.max(1, Math.ceil(newLogs.length / PAGE_SIZE));
+      if (currentPage > maxPage) {
+        setCurrentPage(maxPage);
+      }
     } catch {
       setError('삭제에 실패했습니다.');
     }
@@ -99,6 +107,7 @@ export default function AdminPage() {
     try {
       await deleteAllAccessLogs(adminPassword);
       setLogs([]);
+      setCurrentPage(1);
     } catch {
       setError('삭제에 실패했습니다.');
     }
@@ -165,41 +174,100 @@ export default function AdminPage() {
         {logsLoading ? (
           <div className="loading">로딩 중...</div>
         ) : (
-          <table className="access-logs-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>사용자</th>
-                <th>접속 시간 (KST)</th>
-                <th>IP 주소</th>
-                <th>삭제</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map((log) => (
-                <tr key={log.id}>
-                  <td>{log.id}</td>
-                  <td>{log.username}</td>
-                  <td>{formatDate(log.login_time)}</td>
-                  <td>{log.ip_address || '-'}</td>
-                  <td>
-                    <button
-                      onClick={() => handleDeleteLog(log.id)}
-                      className="delete-log-btn"
-                      title="삭제"
-                    >
-                      X
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {logs.length === 0 && (
+          <>
+            <table className="access-logs-table">
+              <thead>
                 <tr>
-                  <td colSpan={5} className="no-data">접속 기록이 없습니다.</td>
+                  <th>ID</th>
+                  <th>사용자</th>
+                  <th>접속 시간 (KST)</th>
+                  <th>IP 주소</th>
+                  <th>삭제</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {logs
+                  .slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+                  .map((log) => (
+                    <tr key={log.id}>
+                      <td>{log.id}</td>
+                      <td>{log.username}</td>
+                      <td>{formatDate(log.login_time)}</td>
+                      <td>{log.ip_address || '-'}</td>
+                      <td>
+                        <button
+                          onClick={() => handleDeleteLog(log.id)}
+                          className="delete-log-btn"
+                          title="삭제"
+                        >
+                          X
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                {logs.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="no-data">접속 기록이 없습니다.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            {/* 페이지네이션 */}
+            {logs.length > PAGE_SIZE && (
+              <div className="pagination">
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="page-btn"
+                >
+                  «
+                </button>
+                <button
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="page-btn"
+                >
+                  ‹
+                </button>
+
+                {Array.from({ length: Math.ceil(logs.length / PAGE_SIZE) }, (_, i) => i + 1)
+                  .filter(page => {
+                    const totalPages = Math.ceil(logs.length / PAGE_SIZE);
+                    if (totalPages <= 7) return true;
+                    if (page === 1 || page === totalPages) return true;
+                    if (Math.abs(page - currentPage) <= 2) return true;
+                    return false;
+                  })
+                  .map((page, idx, arr) => (
+                    <span key={page}>
+                      {idx > 0 && arr[idx - 1] !== page - 1 && <span className="page-ellipsis">...</span>}
+                      <button
+                        onClick={() => setCurrentPage(page)}
+                        className={`page-btn ${currentPage === page ? 'active' : ''}`}
+                      >
+                        {page}
+                      </button>
+                    </span>
+                  ))}
+
+                <button
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  disabled={currentPage >= Math.ceil(logs.length / PAGE_SIZE)}
+                  className="page-btn"
+                >
+                  ›
+                </button>
+                <button
+                  onClick={() => setCurrentPage(Math.ceil(logs.length / PAGE_SIZE))}
+                  disabled={currentPage >= Math.ceil(logs.length / PAGE_SIZE)}
+                  className="page-btn"
+                >
+                  »
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
