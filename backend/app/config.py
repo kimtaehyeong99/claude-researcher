@@ -8,7 +8,9 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
     )
 
-    DATABASE_URL: str = "sqlite:///./papers.db"
+    # DB 경로: 프로젝트 루트의 data/ 서브모듈
+    _db_path: Path = Path(__file__).parent.parent.parent / "data" / "papers.db"
+    DATABASE_URL: str = f"sqlite:///{_db_path}"
     PAPERS_DIR: Path = Path(__file__).parent.parent / "papers"
     ADMIN_PASSWORD: str = "admin123"  # .env 파일에서 설정
 
