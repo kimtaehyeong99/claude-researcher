@@ -41,7 +41,18 @@
 - Node.js 18+
 - Claude CLI 설치 및 로그인 (`claude` 명령어 사용 가능해야 함)
 
-### 2. 백엔드 설정
+### 2. 프로젝트 클론
+
+```bash
+# 서브모듈 포함하여 클론
+git clone --recurse-submodules https://github.com/kimtaehyeong99/claude-researcher.git
+cd claude-researcher
+
+# 이미 클론한 경우 서브모듈 초기화
+git submodule update --init
+```
+
+### 3. 백엔드 설정
 
 ```bash
 cd backend
@@ -54,13 +65,18 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 3. 프론트엔드 설정
+### 4. 프론트엔드 설정
 
 ```bash
 cd frontend
 
 # 의존성 설치
 npm install
+
+# API 서버 주소 설정 (.env 파일 수정)
+# VITE_API_URL을 백엔드 서버 IP로 변경
+nano .env
+# 예: VITE_API_URL=http://192.168.50.184:8000/api
 ```
 
 ## 실행 방법
@@ -164,7 +180,7 @@ claude_researcher/
 │   │   ├── schemas/             # Pydantic 스키마
 │   │   ├── routers/             # API 라우터
 │   │   └── services/            # 비즈니스 로직
-│   ├── papers/                  # 논문 JSON 파일 저장
+│   ├── venv/                    # Python 가상환경
 │   └── requirements.txt
 │
 ├── frontend/
@@ -174,15 +190,23 @@ claude_researcher/
 │   │   ├── pages/               # 페이지
 │   │   ├── App.tsx
 │   │   └── main.tsx
+│   ├── .env                     # API 서버 주소 설정
 │   └── package.json
 │
+├── data/                        # 서브모듈 (claude-researcher-data)
+│   ├── papers.db                # SQLite 데이터베이스
+│   └── *.json                   # 논문 분석 JSON 파일
+│
+├── .gitmodules
 ├── .gitignore
 └── README.md
 ```
 
 ## 데이터 저장 구조
 
-### SQLite Database (papers.db)
+데이터는 `data/` 서브모듈(별도 Git 레포)에 저장되어 팀원 간 공유 가능합니다.
+
+### SQLite Database (data/papers.db)
 
 빠른 조회/필터링을 위한 메타데이터 저장:
 
@@ -198,12 +222,30 @@ claude_researcher/
 - keyword, category, color
 - 같은 카테고리 내에서 키워드 중복 불가 (UniqueConstraint)
 
-### JSON Files (backend/papers/)
+### JSON Files (data/*.json)
 
 긴 텍스트 데이터 저장:
 - abstract_ko (2단계: 초록 요약)
 - detailed_analysis_ko (3단계: 전체 논문 분석)
 - figure_url (2단계: ar5iv에서 추출한 Figure 이미지 URL)
+
+### 데이터 동기화 (서브모듈)
+
+```bash
+# DB 변경사항 공유 (push)
+cd data
+git add -A
+git commit -m "Update database"
+git push
+cd ..
+git add data
+git commit -m "Update data submodule"
+git push
+
+# DB 변경사항 가져오기 (pull)
+git pull
+git submodule update --remote
+```
 
 ## API 엔드포인트
 
