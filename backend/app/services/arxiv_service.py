@@ -35,6 +35,10 @@ class ArxivService:
 
         Returns:
             Dictionary with paper info or None if not found
+
+        Raises:
+            httpx.TimeoutException: arXiv API 타임아웃
+            httpx.RequestError: 네트워크 오류
         """
         clean_id = self._parse_arxiv_id(paper_id)
 

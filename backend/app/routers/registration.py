@@ -10,7 +10,7 @@ from app.schemas.paper import (
     RegisterBulkRequest,
     BulkRegisterResponse,
 )
-from app.services.paper_service import PaperService
+from app.services.paper_service import PaperService, PaperRegistrationError
 
 router = APIRouter()
 paper_service = PaperService()
@@ -29,17 +29,20 @@ async def register_new_paper(
     - Creates database entry and JSON file
     - Records who registered the paper
     """
-    paper = await paper_service.register_new_paper(
-        db,
-        request.paper_id,
-        skip_citation=True,
-        registered_by=request.registered_by
-    )
+    try:
+        paper = await paper_service.register_new_paper(
+            db,
+            request.paper_id,
+            skip_citation=True,
+            registered_by=request.registered_by
+        )
+    except PaperRegistrationError as e:
+        raise HTTPException(status_code=502, detail=e.message)
 
     if not paper:
         raise HTTPException(
             status_code=404,
-            detail=f"Paper {request.paper_id} not found on arXiv"
+            detail=f"arXiv에서 논문 {request.paper_id}을(를) 찾을 수 없습니다."
         )
 
     return paper

@@ -5,7 +5,6 @@ import { useUserSession } from '../contexts/UserSessionContext';
 import {
   getPapers,
   registerNewPaper,
-  registerCitingPapers,
   toggleFavorite,
   toggleNotInterested,
   updateCitationCount,

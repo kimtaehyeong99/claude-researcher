@@ -80,6 +80,7 @@ class ClaudeService:
 - 첨자: underscore를 사용 (예: a_i, rho_pi_E)
 - 분수: frac를 사용 (예: frac(a)(b))
 - 그리스 문자: pi, alpha, rho 등의 LaTeX 명령어
+- text 안에서 #, %, &, _ 등 특수 문자는 백슬래시 이스케이프 (예: \\text{{\\#arms}})
 
 **응답 형식 (중요)**:
 - 인사말이나 설명 없이 바로 "논문 초록 요약:" 으로 시작해주세요
@@ -184,6 +185,8 @@ class ClaudeService:
    - 그리스 문자: pi, alpha, rho 등 사용
 4. 복잡한 수식은 반드시 $$ $$ 로 감싸세요
 5. 수식 내 일반 텍스트는 text 명령어 사용
+6. text 안에서 #, %, &, _ 등 LaTeX 특수 문자는 반드시 백슬래시로 이스케이프
+   예: \\text{\\#arms}, \\text{100\\%}, \\text{A \\& B}
 
 전문 용어는 영어를 괄호 안에 병기해주세요."""
 

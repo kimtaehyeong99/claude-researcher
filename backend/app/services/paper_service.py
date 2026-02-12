@@ -1,5 +1,6 @@
 import json
 import asyncio
+import httpx
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Tuple
 from datetime import date
@@ -14,6 +15,13 @@ from app.services.openalex_service import OpenAlexService
 from app.services.claude_service import ClaudeService
 from app.services.ar5iv_service import Ar5ivService
 from app.services.keyword_service import KeywordService
+
+
+class PaperRegistrationError(Exception):
+    """논문 등록 실패 시 원인을 포함하는 예외"""
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
 
 
 class PaperService:
@@ -77,14 +85,21 @@ class PaperService:
                 print(f"[PaperService] Citation count fetch failed, using 0: {e}")
                 return 0
 
-        arxiv_info, citation_count, figure_url = await asyncio.gather(
-            self.arxiv.get_paper_info(paper_id),
-            get_citation_safe(),
-            self.ar5iv.get_first_figure_url(paper_id),
-        )
+        try:
+            arxiv_info, citation_count, figure_url = await asyncio.gather(
+                self.arxiv.get_paper_info(paper_id),
+                get_citation_safe(),
+                self.ar5iv.get_first_figure_url(paper_id),
+            )
+        except (httpx.TimeoutException, httpx.ReadTimeout):
+            raise PaperRegistrationError(f"arXiv API 서버가 응답하지 않습니다 (타임아웃). 잠시 후 다시 시도해주세요.")
+        except httpx.RequestError as e:
+            raise PaperRegistrationError(f"arXiv API 네트워크 오류: {type(e).__name__}")
+        except Exception as e:
+            raise PaperRegistrationError(f"논문 정보 조회 실패: {type(e).__name__}")
 
         if not arxiv_info:
-            return None
+            raise PaperRegistrationError(f"arXiv에서 논문 {paper_id}을(를) 찾을 수 없습니다. 논문 번호를 확인해주세요.")
 
         # Create DB entry
         paper = Paper(
@@ -454,6 +469,10 @@ class PaperService:
                         self.ar5iv.get_first_figure_url(paper_id),
                     )
                     return paper_id, arxiv_info, figure_url, None
+                except (httpx.TimeoutException, httpx.ReadTimeout):
+                    return paper_id, None, None, "arXiv API 타임아웃"
+                except httpx.RequestError:
+                    return paper_id, None, None, "네트워크 오류"
                 except Exception as e:
                     return paper_id, None, None, str(e)
 
@@ -470,8 +489,9 @@ class PaperService:
                 paper_id, arxiv_info, figure_url, error = result
 
                 if error or not arxiv_info:
-                    print(f"[PaperService] Failed to register {paper_id}: {error}")
-                    failed.append(paper_id)
+                    reason = error or "arXiv에서 논문을 찾을 수 없음"
+                    print(f"[PaperService] Failed to register {paper_id}: {reason}")
+                    failed.append({"paper_id": paper_id, "reason": reason})
                     continue
 
                 # DB 저장 (검색 결과의 인용수 사용)

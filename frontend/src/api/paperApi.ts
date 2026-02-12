@@ -178,10 +178,15 @@ export interface CitationsPreviewParams {
   year_from?: number;
 }
 
+export interface FailedPaperInfo {
+  paper_id: string;
+  reason: string;
+}
+
 export interface BulkRegisterResponse {
   registered: Paper[];
   skipped: string[];
-  failed: string[];
+  failed: FailedPaperInfo[];
   message: string;
 }
 

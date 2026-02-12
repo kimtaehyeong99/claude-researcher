@@ -130,7 +130,12 @@ export default function RegisterForm({
         };
       });
       const result = await registerBulk(papersToRegister, registeredBy);
-      alert(result.message);
+      let alertMsg = result.message;
+      if (result.failed.length > 0) {
+        const reasons = result.failed.map(f => `  - ${f.paper_id}: ${f.reason}`).join('\n');
+        alertMsg += `\n\n실패 원인:\n${reasons}`;
+      }
+      alert(alertMsg);
       setIsModalOpen(false);
       setSearchResults([]);
       setTopicQuery('');

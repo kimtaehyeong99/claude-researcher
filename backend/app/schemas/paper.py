@@ -112,8 +112,13 @@ class RegisterBulkRequest(BaseModel):
     registered_by: Optional[str] = None
 
 
+class FailedPaperInfo(BaseModel):
+    paper_id: str
+    reason: str
+
+
 class BulkRegisterResponse(BaseModel):
     registered: List[PaperResponse]
     skipped: List[str]
-    failed: List[str]
+    failed: List[FailedPaperInfo]
     message: str
